@@ -1,9 +1,9 @@
 
 import { useState, useRef, useEffect } from "react";
-import { 
-  FiUpload, 
-  FiCalendar, 
-  FiCopy, 
+import {
+  FiUpload,
+  FiCalendar,
+  FiCopy,
   FiRefreshCw,
   FiChevronDown,
   FiChevronUp,
@@ -64,16 +64,9 @@ export default function SocialMedia() {
   const [scheduling, setScheduling] = useState(false);
   const [showOptimization, setShowOptimization] = useState(true);
   const [isUploadOptional, setIsUploadOptional] = useState(true);
-  
+
   // Link Icon States - Simple toggle for each platform
-  const [linkedPlatforms, setLinkedPlatforms] = useState({
-    LinkedIn: true,
-    X: false,
-    Instagram: false,
-    Facebook: false,
-    TikTok: false,
-    YouTube: false,
-  });
+
 
   const [popupOpen, setPopupOpen] = useState(null);
   const [scheduleDate, setScheduleDate] = useState("");
@@ -118,13 +111,13 @@ export default function SocialMedia() {
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     setScheduleDate(tomorrow.toISOString().split('T')[0]);
     setScheduleTime("09:00");
-    
+
     // Set default content idea
     setContentIdea("How to build an engaged community on social media through authentic content");
-    
+
     // Generate initial post
     setTimeout(() => {
       buildPost();
@@ -141,17 +134,17 @@ export default function SocialMedia() {
 
   const buildPost = () => {
     setIsGenerating(true);
-    
+
     setTimeout(() => {
       let emojis = emojiLevels.find(level => level.name === emojiIntensity)?.emojis || "";
 
       let post = "";
-      
+
       // Add media information
       if (uploadedMedia.length > 0) {
         const images = uploadedMedia.filter(m => m.type.startsWith('image'));
         const videos = uploadedMedia.filter(m => m.type.startsWith('video'));
-        
+
         if (images.length > 0) {
           post += `📸 Images Attached: ${images.length} image${images.length > 1 ? 's' : ''}\n\n`;
         }
@@ -181,10 +174,10 @@ export default function SocialMedia() {
           }
         });
       }
-      
+
       // Add platform context
       post += `\n\n#${platform.replace(/\s+/g, '')} #SocialMedia #ContentCreation`;
-      
+
       setGeneratedPost(post);
       setIsGenerating(false);
     }, 600);
@@ -263,7 +256,7 @@ export default function SocialMedia() {
   };
 
   const getPostTypeIcon = (type) => {
-    switch(type) {
+    switch (type) {
       case "text": return <FiType className="text-xl" />;
       case "video": return <FiVideo className="text-xl" />;
       case "image": return <FiImage className="text-xl" />;
@@ -278,12 +271,7 @@ export default function SocialMedia() {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  const toggleLink = (platformName) => {
-    setLinkedPlatforms(prev => ({
-      ...prev,
-      [platformName]: !prev[platformName],
-    }));
-  };
+
 
   // Auto-generate post when relevant fields change
   useEffect(() => {
@@ -293,7 +281,7 @@ export default function SocialMedia() {
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [platform, postType, emojiIntensity, audience, contentIdea, linkedPlatforms]);
+  }, [platform, postType, emojiIntensity, audience, contentIdea]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
@@ -317,20 +305,14 @@ export default function SocialMedia() {
                 {platforms.map(p => (
                   <div key={p.name} className="relative">
                     {/* Link icon outside the card */}
-                    <button
-                      onClick={() => toggleLink(p.name)}
-                      className="absolute -top-2 -right-2 bg-white border rounded-full p-1 shadow z-10 hover:bg-gray-50 transition-colors"
-                      title={linkedPlatforms[p.name] ? "Link enabled" : "Link disabled"}
-                    >
-                      {linkedPlatforms[p.name] ? (
+                    {platform === p.name && (
+                      <div className="absolute -top-2 -right-2 bg-white border rounded-full p-1 shadow z-10">
                         <FaCheck className="text-green-500" size={14} />
-                      ) : (
-                        <FiLink className="text-gray-500" size={14} />
-                      )}
-                    </button>
+                      </div>
+                    )}
 
-                    <CardSelect 
-                      active={platform === p.name} 
+                    <CardSelect
+                      active={platform === p.name}
                       onClick={() => setPlatform(p.name)}
                       className="flex flex-col items-center p-4"
                     >
@@ -348,9 +330,9 @@ export default function SocialMedia() {
             <Section title="Post Type" icon={<FiType />}>
               <div className="grid grid-cols-2 gap-3">
                 {["text", "video", "image", "article"].map(t => (
-                  <CardSelect 
-                    key={t} 
-                    active={postType === t} 
+                  <CardSelect
+                    key={t}
+                    active={postType === t}
                     onClick={() => setPostType(t)}
                     className="flex flex-col items-center p-4"
                   >
@@ -403,21 +385,18 @@ export default function SocialMedia() {
                     {uploadedMedia.length} file{uploadedMedia.length !== 1 ? 's' : ''} uploaded
                   </span>
                 </div>
-                
-                <label 
+
+                <label
                   onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl min-h-32 flex flex-col items-center justify-center cursor-pointer transition-all ${
-                    uploadedMedia.length > 0 
-                      ? "border-green-400 bg-green-50" 
-                      : "border-gray-300 hover:border-cyan-400 hover:bg-cyan-50"
-                  }`}
+                  className={`border-2 border-dashed rounded-xl min-h-32 flex flex-col items-center justify-center cursor-pointer transition-all ${uploadedMedia.length > 0
+                    ? "border-green-400 bg-green-50"
+                    : "border-gray-300 hover:border-cyan-400 hover:bg-cyan-50"
+                    }`}
                 >
-                  <FiUpload className={`text-3xl mb-3 ${
-                    uploadedMedia.length > 0 ? "text-green-500" : "text-gray-400"
-                  }`} />
-                  <span className={`font-medium ${
-                    uploadedMedia.length > 0 ? "text-green-600" : "text-gray-500"
-                  }`}>
+                  <FiUpload className={`text-3xl mb-3 ${uploadedMedia.length > 0 ? "text-green-500" : "text-gray-400"
+                    }`} />
+                  <span className={`font-medium ${uploadedMedia.length > 0 ? "text-green-600" : "text-gray-500"
+                    }`}>
                     {uploadedMedia.length > 0 ? "Add more files" : "Click to upload images/videos"}
                   </span>
                   <span className="text-sm mt-1 text-gray-500">
@@ -432,7 +411,7 @@ export default function SocialMedia() {
                   accept="image/*,video/*"
                   className="hidden"
                 />
-                
+
                 {uploadedMedia.length > 0 && (
                   <div className="grid grid-cols-2 gap-2">
                     {uploadedMedia.map((media, index) => (
@@ -461,7 +440,7 @@ export default function SocialMedia() {
                               <FiTrash2 className="text-red-500 text-sm" />
                             </button>
                           </div>
-                          
+
                           {media.type.startsWith('image') && (
                             <div className="mt-2">
                               <img
@@ -471,7 +450,7 @@ export default function SocialMedia() {
                               />
                             </div>
                           )}
-                          
+
                           {media.type.startsWith('video') && (
                             <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-100">
                               <div className="flex items-center gap-2 text-blue-600">
@@ -514,11 +493,10 @@ export default function SocialMedia() {
                   <button
                     key={a.name}
                     onClick={() => setAudience(a.name)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all shadow-sm hover:shadow-md ${
-                      audience === a.name
-                        ? `bg-gradient-to-r ${a.color} text-white shadow-md scale-105`
-                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all shadow-sm hover:shadow-md ${audience === a.name
+                      ? `bg-gradient-to-r ${a.color} text-white shadow-md scale-105`
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                      }`}
                   >
                     <span className="text-lg">{a.icon}</span>
                     <span>{a.name}</span>
@@ -531,16 +509,15 @@ export default function SocialMedia() {
             <Section title="Emoji Intensity" icon={<FiSmile />}>
               <div className="grid grid-cols-4 gap-4 text-center">
                 {emojiLevels.map(level => (
-                  <div 
-                    key={level.name} 
+                  <div
+                    key={level.name}
                     onClick={() => setEmojiIntensity(level.name)}
                     className="cursor-pointer"
                   >
-                    <div className={`w-12 h-12 mx-auto rounded-full border-2 flex items-center justify-center text-xl mb-2 transition-all ${
-                      emojiIntensity === level.name 
-                        ? "border-cyan-400 bg-gradient-to-r from-cyan-50 to-blue-50 shadow-sm" 
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}>
+                    <div className={`w-12 h-12 mx-auto rounded-full border-2 flex items-center justify-center text-xl mb-2 transition-all ${emojiIntensity === level.name
+                      ? "border-cyan-400 bg-gradient-to-r from-cyan-50 to-blue-50 shadow-sm"
+                      : "border-gray-200 hover:border-gray-300"
+                      }`}>
                       {level.icon}
                     </div>
                     <p className="text-sm font-medium">{level.name}</p>
@@ -553,11 +530,10 @@ export default function SocialMedia() {
             <button
               disabled={!isReady || isGenerating}
               onClick={buildPost}
-              className={`w-full py-4 rounded-2xl text-white font-semibold text-lg flex items-center justify-center gap-3 transition-all ${
-                isReady
-                  ? "bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 shadow-lg hover:shadow-xl hover:scale-[1.02]"
-                  : "bg-gradient-to-r from-cyan-200 to-blue-300 opacity-70 cursor-not-allowed"
-              }`}
+              className={`w-full py-4 rounded-2xl text-white font-semibold text-lg flex items-center justify-center gap-3 transition-all ${isReady
+                ? "bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                : "bg-gradient-to-r from-cyan-200 to-blue-300 opacity-70 cursor-not-allowed"
+                }`}
             >
               {isGenerating ? (
                 <>
@@ -577,7 +553,7 @@ export default function SocialMedia() {
           <div className="space-y-6 pt-4">
             {/* Generated Content Card */}
             <Card>
-              <Header 
+              <Header
                 title={
                   <div className="flex items-center gap-2">
                     <FiZap className="text-cyan-500" />
@@ -586,14 +562,14 @@ export default function SocialMedia() {
                 }
                 actions={
                   <div className="flex gap-3">
-                    <button 
+                    <button
                       onClick={buildPost}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                       title="Regenerate"
                     >
                       <FiRefreshCw className={`${isGenerating ? 'animate-spin' : ''}`} />
                     </button>
-                    <button 
+                    <button
                       onClick={copyPost}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative"
                       title="Copy to clipboard"
@@ -608,7 +584,7 @@ export default function SocialMedia() {
                   </div>
                 }
               />
-              <div 
+              <div
                 ref={contentRef}
                 className="p-6 h-80 overflow-y-auto whitespace-pre-line bg-gray-50 rounded-b-2xl scrollbar-hide"
               >
@@ -682,16 +658,16 @@ export default function SocialMedia() {
             {/* Post Action Buttons */}
             {generatedPost && (
               <div className="flex gap-4">
-                <GradientBtn 
-                  green 
+                <GradientBtn
+                  green
                   onClick={() => setPopupOpen("post")}
                   disabled={posting}
                   icon={<FaRocket />}
                 >
                   {posting ? "Posting..." : "Post Now"}
                 </GradientBtn>
-                <GradientBtn 
-                  blue 
+                <GradientBtn
+                  blue
                   onClick={() => setPopupOpen("schedule")}
                   disabled={scheduling}
                   icon={<FiCalendar />}
@@ -744,7 +720,7 @@ export default function SocialMedia() {
                         <FiChevronDown className="text-gray-400" />
                       )}
                     </button>
-                    
+
                     {showOptimization && (
                       <div className="space-y-6 animate-slideDown">
                         <div className="grid grid-cols-2 gap-4">
@@ -803,14 +779,7 @@ export default function SocialMedia() {
                     <span className="font-medium text-gray-700">Post Type:</span>
                     <span className="capitalize font-medium">{postType}</span>
                   </div>
-                  {linkedPlatforms[platform] && (
-                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                      <span className="font-medium text-gray-700">Link Status:</span>
-                      <span className="font-medium text-blue-600">
-                        <FaCheck className="inline mr-1 text-green-500" /> Linked
-                      </span>
-                    </div>
-                  )}
+
                 </div>
 
                 <button
@@ -933,11 +902,10 @@ const Header = ({ title, actions }) => (
 const CardSelect = ({ active, children, className = "", ...props }) => (
   <button
     {...props}
-    className={`border-2 rounded-xl p-4 text-center transition-all w-full ${className} ${
-      active
-        ? "border-cyan-400 bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 shadow-sm"
-        : "border-gray-200 hover:border-gray-300"
-    }`}
+    className={`border-2 rounded-xl p-4 text-center transition-all w-full ${className} ${active
+      ? "border-cyan-400 bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 shadow-sm"
+      : "border-gray-200 hover:border-gray-300"
+      }`}
   >
     {children}
   </button>
@@ -965,15 +933,13 @@ const GradientBtn = ({ green, blue, children, disabled, icon, ...props }) => (
   <button
     {...props}
     disabled={disabled}
-    className={`flex-1 py-4 rounded-xl font-semibold text-white flex items-center justify-center gap-3 transition-all ${
-      disabled
-        ? "opacity-70 cursor-not-allowed"
-        : "hover:shadow-lg transform hover:-translate-y-0.5"
-    } ${
-      green
+    className={`flex-1 py-4 rounded-xl font-semibold text-white flex items-center justify-center gap-3 transition-all ${disabled
+      ? "opacity-70 cursor-not-allowed"
+      : "hover:shadow-lg transform hover:-translate-y-0.5"
+      } ${green
         ? "bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700"
         : "bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600"
-    }`}
+      }`}
   >
     {icon}
     {children}
@@ -982,11 +948,10 @@ const GradientBtn = ({ green, blue, children, disabled, icon, ...props }) => (
 
 const Score = ({ title, value, green, blue }) => (
   <div
-    className={`rounded-xl p-4 border ${
-      green
-        ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800"
-        : "bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-800"
-    }`}
+    className={`rounded-xl p-4 border ${green
+      ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800"
+      : "bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-800"
+      }`}
   >
     <p className="font-semibold text-sm mb-2">{title}</p>
     <p className="text-3xl font-bold">{value}</p>

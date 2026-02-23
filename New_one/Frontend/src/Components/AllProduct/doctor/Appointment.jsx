@@ -2108,8 +2108,13 @@ function SelectTime({ value, onChange, placeholder, options }) {
 /* ---------- main ---------- */
 
 export default function Appointment() {
-  const [monthCursor, setMonthCursor] = useState(new Date(2026, 1, 1));
-  const [selectedKey, setSelectedKey] = useState(toKey(new Date(2026, 1, 5)));
+const today = new Date();
+
+const [monthCursor, setMonthCursor] = useState(
+  new Date(today.getFullYear(), today.getMonth(), 1)
+);
+
+const [selectedKey, setSelectedKey] = useState(toKey(today));
   const selectedDate = useMemo(() => parseKey(selectedKey), [selectedKey]);
 
   const [view, setView] = useState("slots");
@@ -2283,6 +2288,7 @@ useEffect(() => {
       }
       return next;
     });
+    setSelectedKey(toKey(weekDates[0]));
   };
 
   const dayHours = useMemo(
