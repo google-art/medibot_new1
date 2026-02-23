@@ -1,6 +1,5 @@
 
-
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import {
   FiUser,
   FiHome,
@@ -208,8 +207,22 @@ export default function Settings() {
     payment: true,
   });
 
-  const sanitizedFee = useMemo(() => String(billing.defaultFee).replace(/[^\d]/g, ""), [billing.defaultFee]);
+    // ✅ Load saved settings from localStorage on first render
+  useEffect(() => {
+    const savedDoctor = localStorage.getItem("doctorSettings");
+    const savedClinic = localStorage.getItem("clinicSettings");
+    const savedBilling = localStorage.getItem("billingSettings");
+    const savedNotify = localStorage.getItem("notifySettings");
+    const savedPhoto = localStorage.getItem("profilePhoto");
 
+    if (savedDoctor) setDoctor(JSON.parse(savedDoctor));
+    if (savedClinic) setClinic(JSON.parse(savedClinic));
+    if (savedBilling) setBilling(JSON.parse(savedBilling));
+    if (savedNotify) setNotify(JSON.parse(savedNotify));
+    if (savedPhoto) setPhotoUrl(savedPhoto);
+  }, []);
+
+  
   const toggleMethod = (m) => {
     setBilling((prev) => {
       const exists = prev.methods.includes(m);
@@ -217,43 +230,47 @@ export default function Settings() {
     });
   };
 
-  const saveChanges = () => {
-    setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
-      alert("✅ Settings saved!");
-    }, 900);
-  };
+const saveChanges = () => {
+  setSaving(true);
+
+  // Save everything
+  localStorage.setItem("doctorSettings", JSON.stringify(doctor));
+  localStorage.setItem("clinicSettings", JSON.stringify(clinic));
+  localStorage.setItem("billingSettings", JSON.stringify(billing));
+  localStorage.setItem("notifySettings", JSON.stringify(notify));
+  localStorage.setItem("profilePhoto", photoUrl);
+
+  setTimeout(() => {
+    setSaving(false);
+    window.location.reload();   // ✅ This line forces automatic reload
+  }, 500);
+};
 
   const openFilePicker = () => fileRef.current?.click();
 
-  const onPhotoPicked = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+const onPhotoPicked = (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    // Validate type
-    if (!file.type.startsWith("image/")) {
-      alert("Please select an image file.");
-      e.target.value = "";
-      return;
-    }
+  if (!file.type.startsWith("image/")) {
+    alert("Please select an image file.");
+    return;
+  }
 
-    // Replace old preview URL safely
-    setPhotoUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
+  const reader = new FileReader();
 
-    // allow re-selecting same file again
-    e.target.value = "";
+  reader.onload = () => {
+    setPhotoUrl(reader.result); // base64 string (persistent)
   };
 
-  const removePhoto = () => {
-    setPhotoUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return "";
-    });
-  };
+  reader.readAsDataURL(file);
+  e.target.value = "";
+};
+
+const removePhoto = () => {
+  setPhotoUrl("");
+  localStorage.removeItem("profilePhoto");
+};
 
   return (
     <div
@@ -490,31 +507,7 @@ export default function Settings() {
                 </div>
               </SectionShell>
 
-              <SectionShell
-                borderColor="border-[#F0B100]"
-                title="Operating Hours"
-                iconBoxBg="bg-[#F0B100]"
-                icon={<FiClock className="text-black text-xl" />}
-              >
-                <div className="space-y-3">
-                  <HoursRow
-                    label="Monday - Friday"
-                    value={clinic.hours.monFri}
-                    onChange={(v) => setClinic((p) => ({ ...p, hours: { ...p.hours, monFri: v } }))}
-                  />
-                  <HoursRow
-                    label="Saturday"
-                    value={clinic.hours.sat}
-                    onChange={(v) => setClinic((p) => ({ ...p, hours: { ...p.hours, sat: v } }))}
-                  />
-                  <HoursRow
-                    label="Sunday"
-                    value={clinic.hours.sun}
-                    onChange={(v) => setClinic((p) => ({ ...p, hours: { ...p.hours, sun: v } }))}
-                    badge
-                  />
-                </div>
-              </SectionShell>
+              
             </div>
           )}
 
@@ -532,13 +525,18 @@ export default function Settings() {
                   <Label>Default Consultation Fee *</Label>
                   <div className="border-2 border-black rounded-sm bg-white h-11 px-3 flex items-center gap-2">
                     <FaRupeeSign className="text-black/70" />
-                    <input
-                      value={sanitizedFee}
-                      onChange={(e) => setBilling((p) => ({ ...p, defaultFee: e.target.value }))}
-                      className="w-full outline-none bg-transparent text-sm text-black placeholder:text-black/35"
-                      placeholder="200"
-                      inputMode="numeric"
-                    />
+<input
+  value={billing.defaultFee}
+  onChange={(e) =>
+    setBilling((p) => ({
+      ...p,
+      defaultFee: e.target.value.replace(/[^\d]/g, "")
+    }))
+  }
+  className="w-full outline-none bg-transparent text-sm text-black placeholder:text-black/35"
+  placeholder="200"
+  inputMode="numeric"
+/>
                   </div>
                 </div>
 
@@ -562,7 +560,8 @@ export default function Settings() {
                   <div>
                     <div className="font-extrabold text-xs text-black uppercase">Quick Tip</div>
                     <div className="text-xs text-black/60 mt-1">
-                      The default consultation fee (₹{sanitizedFee || "200"}) will be automatically applied to new
+                    The default consultation fee (₹{billing.defaultFee || "200"})
+                       will be automatically applied to new
                       appointments. You can edit individual fees in the Billing section.
                     </div>
                   </div>

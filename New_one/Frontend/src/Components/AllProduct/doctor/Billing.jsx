@@ -663,7 +663,7 @@ const FilterBar = ({ query, setQuery, status, setStatus }) => {
             ? "All Payments"
             : status.charAt(0).toUpperCase() + status.slice(1)}
         </span>
-       
+
       </button>
     </div>
   );
@@ -676,8 +676,8 @@ const Badge = ({ kind }) => {
     kind === "pending"
       ? "border-[#F0B100] bg-[#FFF4D1]"
       : kind === "paid"
-      ? "border-[#00C950] bg-[#EFFFF5]"
-      : "border-[#FF2D2D] bg-[#FFE3E3]";
+        ? "border-[#00C950] bg-[#EFFFF5]"
+        : "border-[#FF2D2D] bg-[#FFE3E3]";
 
   return (
     <span className={`inline-flex items-center h-5 px-2 text-[10px] font-extrabold rounded-sm border-2 ${cls} text-black`}>
@@ -737,8 +737,8 @@ const RecordCard = ({
     r.status === "paid"
       ? "border-[#00C950]"
       : r.status === "overdue"
-      ? "border-[#FF2D2D]"
-      : "border-[#F0B100]";
+        ? "border-[#FF2D2D]"
+        : "border-[#F0B100]";
 
   const subtleBg = r.status === "pending" ? "bg-[#FFFBEE]" : "bg-white";
   const canEditFee = r.status !== "paid"; // ✅ after paid cannot edit
@@ -767,11 +767,10 @@ const RecordCard = ({
 
           {r.status !== "pending" ? (
             <div
-              className={`mt-3 border-2 rounded-sm p-3 text-xs ${
-                r.status === "paid"
-                  ? "border-[#00C950] bg-[#F2FFF8]"
-                  : "border-[#FF2D2D] bg-[#FFF5F5]"
-              }`}
+              className={`mt-3 border-2 rounded-sm p-3 text-xs ${r.status === "paid"
+                ? "border-[#00C950] bg-[#F2FFF8]"
+                : "border-[#FF2D2D] bg-[#FFF5F5]"
+                }`}
             >
               <div className="font-extrabold text-black flex items-center gap-2">
                 {r.status === "paid" ? (
@@ -895,6 +894,8 @@ const Billing = () => {
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all"); // all | pending | paid | overdue
+  const [revenueFilter, setRevenueFilter] = useState("all");
+  // all | day | week | year
 
   // editing state: which record is being edited + draft fee
   const [editing, setEditing] = useState({}); // { [id]: { active: true, draft: "123" } }
@@ -905,23 +906,61 @@ const Billing = () => {
   const [markPaidMethod, setMarkPaidMethod] = useState("");
 
   const totals = useMemo(() => {
-    const paid = records.filter((r) => r.status === "paid").reduce((s, r) => s + (r.fee || 0), 0);
-    const pending = records.filter((r) => r.status === "pending").reduce((s, r) => s + (r.fee || 0), 0);
-    const overdue = records.filter((r) => r.status === "overdue").reduce((s, r) => s + (r.fee || 0), 0);
-    const total = paid + pending + overdue;
+    const now = new Date();
+
+const applyDateFilter = (r) => {
+  if (revenueFilter === "all") return true;
+
+  const recordDate = new Date(r.date);
+
+  if (revenueFilter === "day") {
+    return recordDate.toDateString() === now.toDateString();
+  }
+
+  if (revenueFilter === "week") {
+    const firstDay = new Date(now);
+    firstDay.setDate(now.getDate() - now.getDay());
+    return recordDate >= firstDay;
+  }
+
+  if (revenueFilter === "month") {
+    return (
+      recordDate.getMonth() === now.getMonth() &&
+      recordDate.getFullYear() === now.getFullYear()
+    );
+  }
+
+  if (revenueFilter === "year") {
+    return recordDate.getFullYear() === now.getFullYear();
+  }
+
+  return true;
+};
+    const filteredRecords = records.filter(applyDateFilter);
+
+    const paid = filteredRecords
+      .filter((r) => r.status === "paid")
+      .reduce((s, r) => s + (r.fee || 0), 0);
+
+    const pending = filteredRecords
+      .filter((r) => r.status === "pending")
+      .reduce((s, r) => s + (r.fee || 0), 0);
+
+    const overdue = filteredRecords
+      .filter((r) => r.status === "overdue")
+      .reduce((s, r) => s + (r.fee || 0), 0);
 
     return {
-      total,
+      total: paid + pending + overdue,
       paid,
       pending,
       overdue,
-      paidCount: records.filter((r) => r.status === "paid").length,
-      pendingCount: records.filter((r) => r.status === "pending").length,
-      overdueCount: records.filter((r) => r.status === "overdue").length,
+      paidCount: filteredRecords.filter((r) => r.status === "paid").length,
+      pendingCount: filteredRecords.filter((r) => r.status === "pending").length,
+      overdueCount: filteredRecords.filter((r) => r.status === "overdue").length,
       defaultFee: 200,
     };
-  }, [records]);
-
+  }, [records, revenueFilter]);
   // ✅ patient summary (counts)
   const patientSummary = useMemo(() => {
     const paid = records.filter((r) => r.status === "paid").length;
@@ -962,10 +1001,10 @@ const Billing = () => {
       prev.map((r) =>
         r.id === markPaidTarget.id
           ? {
-              ...r,
-              status: "paid",
-              note: `Paid on ${today} via ${method}`,
-            }
+            ...r,
+            status: "paid",
+            note: `Paid on ${today} via ${method}`,
+          }
           : r
       )
     );
@@ -1090,26 +1129,47 @@ const Billing = () => {
     >
       <main className="mx-auto max-w-[1100px] px-6 py-7">
         {/* Header */}
+        {/* Header */}
         <div className="flex items-start justify-between gap-4">
+
+          {/* LEFT SIDE */}
           <div>
             <h1 className="text-3xl font-extrabold text-black tracking-tight">
-              BILLING &amp; REVENUE
+              BILLING & REVENUE
             </h1>
             <p className="text-sm text-black/55 mt-1">
               Track consultation fees and payments
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={exportCsv}
-            className="h-9 px-4 bg-[#00B8DB] text-black font-extrabold text-xs border-2 border-black rounded-sm inline-flex items-center gap-2"
-          >
-            <FiDownload />
-            EXPORT
-          </button>
-        </div>
+          {/* RIGHT SIDE */}
+          <div className="flex items-center gap-3">
 
+            {/* EXPORT FIRST */}
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="h-9 px-4 bg-[#00B8DB] text-black font-extrabold text-xs border-2 border-black rounded-sm inline-flex items-center gap-2"
+            >
+              <FiDownload />
+              EXPORT
+            </button>
+
+            {/* FILTER SECOND */}
+            <select
+              value={revenueFilter}
+              onChange={(e) => setRevenueFilter(e.target.value)}
+              className="h-9 px-3 border-2 border-black rounded-sm bg-white text-sm font-semibold"
+            >
+              <option value="all">All Time</option>
+              <option value="day">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="year">This Year</option>
+            </select>
+
+          </div>
+        </div>
         {/* 4 main cards */}
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((s) => (
