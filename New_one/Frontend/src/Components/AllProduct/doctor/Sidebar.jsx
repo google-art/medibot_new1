@@ -254,7 +254,16 @@ export default function Sidebar() {
     []
   );
 
-  const isActive = (path) => pathname === path || pathname.startsWith(path + "/");
+  const isActive = (path) => {
+  if (path === `${DOCTOR_BASE}/dashboard`) {
+    return (
+      pathname === `${DOCTOR_BASE}` ||
+      pathname === `${DOCTOR_BASE}/dashboard`
+    );
+  }
+
+  return pathname === path || pathname.startsWith(path + "/");
+};
 
   const safeNavigate = (to) => {
     if (to !== pathname) navigate(to);

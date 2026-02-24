@@ -26,7 +26,7 @@ export default function MainDoctor() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<DoctorDashboard />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
 
         {/* ✅ relative paths */}
         <Route path="dashboard" element={<DoctorDashboard />} />

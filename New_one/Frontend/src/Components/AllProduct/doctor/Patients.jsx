@@ -396,6 +396,7 @@
 // }
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import * as XLSX from "xlsx";
 import {
   FiUser,
   FiFileText,
@@ -683,7 +684,19 @@ export default function Patients() {
           prescription: "Tab. Amlodipine 5mg OD, Tab. Atorvastatin 10mg OD",
         },
       ],
-      P002: [],
+      P002: [
+        {
+          reportId: "R002",
+          type: "report",
+          title: "Medical Report",
+          date: "1/28/2026",
+          time: "05:52 PM",
+          vitals: { height: "165 cm", weight: "55 kg", bp: "110/70" },
+          chiefComplaint: "Chest pain and shortness of breath",
+          diagnosis: "Mild hypertension, advised lifestyle modifications",
+          prescription: "Tab. paracitamal  5mg OD, Tab. Atorvastatin 10mg OD",
+        },
+      ],
       P003: [],
     }),
     []
@@ -721,10 +734,156 @@ export default function Patients() {
 
   // ✅ FIXED: go to doctor module capture/:patientId
   const goNewConsultation = (p) => {
+
     const payload = { patientId: p.id, patientName: p.name };
     sessionStorage.setItem("capturePatient", JSON.stringify(payload));
     navigate(`${DOCTOR_BASE}/capture/${p.id}`, { state: payload });
   };
+
+  // ===============================
+// DOWNLOAD ALL REPORTS EXCEL
+// ===============================
+const downloadAllReportsExcel = () => {
+  const allReports = Object.entries(historyByPatientId).flatMap(
+    ([patientId, reports]) =>
+      reports.map((r) => ({
+        "Report ID": r.reportId,
+        "Patient ID": patientId,
+        "Date": r.date,
+        "Time": r.time,
+        "Height": r.vitals.height,
+        "Weight": r.vitals.weight,
+        "Blood Pressure": r.vitals.bp,
+        "Chief Complaint": r.chiefComplaint,
+        "Diagnosis": r.diagnosis,
+        "Prescription": r.prescription,
+      }))
+  );
+
+  if (allReports.length === 0) {
+    alert("No reports available to download.");
+    return;
+  }
+
+  const worksheet = XLSX.utils.json_to_sheet(allReports);
+
+  const columnWidths = Object.keys(allReports[0]).map((key) => ({
+    wch:
+      Math.max(
+        key.length,
+        ...allReports.map((row) => String(row[key]).length)
+      ) + 5,
+  }));
+
+  worksheet["!cols"] = columnWidths;
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Medical Reports");
+
+  XLSX.writeFile(workbook, "Medical_Reports.xlsx");
+};
+
+// ===============================
+// DOWNLOAD PATIENT LIST EXCEL
+// ===============================
+const downloadPatientListExcel = () => {
+  if (patients.length === 0) {
+    alert("No patients available to download.");
+    return;
+  }
+
+  const data = patients.map((p) => ({
+    "Patient ID": p.id,
+    "Patient Name": p.name,
+    Age: p.age,
+    "Phone Number": p.phone,
+    Email: p.email,
+    Location: p.location,
+    "Last Visit": p.lastVisit,
+    "Total Visits": p.totalVisits,
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+
+  const columnWidths = Object.keys(data[0]).map((key) => ({
+    wch:
+      Math.max(
+        key.length,
+        ...data.map((row) => String(row[key]).length)
+      ) + 5,
+  }));
+
+  worksheet["!cols"] = columnWidths;
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Patient List");
+
+  XLSX.writeFile(workbook, "Patient_List.xlsx");
+};
+
+// ===============================
+// DOWNLOAD SELECTED PATIENT CSV
+// ===============================
+const downloadReportsForSelectedPatient = () => {
+  if (!selectedPatient) return;
+
+  const reports = historyByPatientId[selectedPatient.id] || [];
+
+  if (reports.length === 0) {
+    alert("No reports available to download.");
+    return;
+  }
+
+  const headers = [
+    "Report ID",
+    "Patient ID",
+    "Patient Name",
+    "Date",
+    "Time",
+    "Height",
+    "Weight",
+    "Blood Pressure",
+    "Chief Complaint",
+    "Diagnosis",
+    "Prescription",
+  ];
+
+  const rows = reports.map((r) => [
+    r.reportId,
+    selectedPatient.id,
+    selectedPatient.name,
+    r.date,
+    r.time,
+    r.vitals.height,
+    r.vitals.weight,
+    r.vitals.bp,
+    r.chiefComplaint,
+    r.diagnosis,
+    r.prescription,
+  ]);
+
+  const csvContent =
+    [headers, ...rows]
+      .map((row) => row.map((item) => `"${item}"`).join(","))
+      .join("\n");
+
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.setAttribute(
+    "download",
+    `${selectedPatient.name}_reports.csv`
+  );
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
 
   return (
     <div
@@ -745,19 +904,20 @@ export default function Patients() {
               Manage patient records and consultations
             </p>
           </div>
+          
+  <div className="flex items-center gap-3">
+    <SecondaryButton
+  onClick={downloadPatientListExcel}
+  leftIcon={<FiFileText />}
+>
+  DOWNLOAD PATIENT REPORT
+</SecondaryButton>
 
-          <div className="flex items-center gap-3">
-            <SecondaryButton
-              onClick={() => openHistory(patients[0])}
-              leftIcon={<FiFileText />}
-            >
-              REPORTS
-            </SecondaryButton>
-            <PrimaryButton onClick={goNewPatient} leftIcon={<FiPlus />}>
-              NEW PATIENT
-            </PrimaryButton>
-          </div>
-        </div>
+    <PrimaryButton onClick={goNewPatient} leftIcon={<FiPlus />}>
+      NEW PATIENT
+    </PrimaryButton>
+  </div>
+</div>
 
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
@@ -868,15 +1028,25 @@ export default function Patients() {
           </div>
         )}
 
-        <div className="mt-4 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setShowReports(false)}
-            className="h-9 px-4 border-2 border-black rounded-sm bg-white font-extrabold text-xs uppercase"
-          >
-            BACK
-          </button>
-        </div>
+        <div className="mt-4 flex justify-between">
+
+  <button
+    type="button"
+    onClick={downloadReportsForSelectedPatient}
+    className="h-9 px-4 border-2 border-black rounded-sm bg-[#00B8DB] font-extrabold text-xs uppercase"
+  >
+    DOWNLOAD CSV
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setShowReports(false)}
+    className="h-9 px-4 border-2 border-black rounded-sm bg-white font-extrabold text-xs uppercase"
+  >
+    BACK
+  </button>
+
+</div>
       </Modal>
     </div>
   );
