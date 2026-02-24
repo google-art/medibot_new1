@@ -255,15 +255,15 @@ export default function Sidebar() {
   );
 
   const isActive = (path) => {
-  if (path === `${DOCTOR_BASE}/dashboard`) {
-    return (
-      pathname === `${DOCTOR_BASE}` ||
-      pathname === `${DOCTOR_BASE}/dashboard`
-    );
-  }
+    if (path === `${DOCTOR_BASE}/dashboard`) {
+      return (
+        pathname === `${DOCTOR_BASE}` ||
+        pathname === `${DOCTOR_BASE}/dashboard`
+      );
+    }
 
-  return pathname === path || pathname.startsWith(path + "/");
-};
+    return pathname === path || pathname.startsWith(path + "/");
+  };
 
   const safeNavigate = (to) => {
     if (to !== pathname) navigate(to);
@@ -416,27 +416,40 @@ export default function Sidebar() {
               )}
             </div>
 
-            <div className="leading-tight">
-              <div className="text-sm font-extrabold text-black">
-                {doctor?.fullName || "Doctor Name"}
+            <div className="w-full border-t p-3 space-y-3">
+
+              {/* User info */}
+              <div className="flex items-center gap-2 min-w-0">
+
+             
+
+                <div className="min-w-0">
+                  <div className="text-sm font-extrabold text-black truncate">
+                    {doctor?.fullName || "Doctor Name"}
+                  </div>
+
+                  <div className="text-xs font-semibold text-[#00B8DB] truncate">
+                    {doctor?.specialization || "Specialization"}
+                  </div>
+                </div>
+
               </div>
-              <div className="text-xs font-semibold text-[#00B8DB]">
-                {doctor?.specialization || "Specialization"}
-              </div>
-            {/* </div> */}
+
+              {/* Logout */}
+              <button
+                onClick={() => alert("Logout (demo)")}
+                className="w-full rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-extrabold text-black flex items-center justify-center gap-2 hover:bg-black/5 transition"
+              >
+                <FiLogOut />
+                Logout
+              </button>
+
+            </div>
+
+
           </div>
-           {/* Logout */}
-        <button
-          onClick={() => alert("Logout (demo)")}
-          type="button"
-          className="w-full rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-extrabold text-black flex items-center justify-center gap-2 hover:bg-black/5"
-        >
-          <FiLogOut />
-          Logout
-        </button>
-      </div>
         )}
-    </div>
-       </aside>
+      </div>
+    </aside>
   );
 }

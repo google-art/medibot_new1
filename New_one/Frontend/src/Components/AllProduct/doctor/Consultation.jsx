@@ -332,63 +332,41 @@ const handleStop = () => {
   };
 
 const handleSendToAI = async () => {
-  if (!audioBlob) return;
-
-  setSent(true);
-  setStep(0);
-  setFilled(false);
-
   try {
-    const formData = new FormData();
-    formData.append("audio", audioBlob, "recording.webm");
+    setSent(true);
 
-    const res = await fetch("http://localhost:3001/api/medibot/voice", {
-      method: "POST",
-      body: formData,
+    // create form data (audio + extra info)
+    const formData = new FormData();
+    formData.append("audio", audioBlob);
+
+    // optional — if you have vitals state
+    formData.append("height", vitals?.height || "");
+    formData.append("weight", vitals?.weight || "");
+    formData.append("bp", vitals?.bp || "");
+
+    const response = await fetch(
+      "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/voice2textconversion112",
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    const result = await response.json();
+
+    // fill medical report automatically
+    setMedicalReport({
+      patient: result.patient || "",
+      medication: result.medication || "",
+      symptoms: result.symptoms || "",
+      doctorNotes: result.doctorNotes || "",
+      followup: result.followup || "",
     });
 
-    // 🔥 MISSING STEP — parse backend JSON
-    const data = await res.json();
-    console.log("🔥 RAW BACKEND DATA:", data);
-
-    // 🔥 DEFINE ai safely
-    const ai =
-      Array.isArray(data) ? data[0] :
-      Array.isArray(data?.data) ? data.data[0] :
-      data;
-
-      setReport({
-  patient: patientName,
-  symptoms: ai?.symptoms || "",
-  diagnosis: ai?.diagnosis || "",
-  medication: ai?.medicines || "",
-  notes: ai?.doctor_notes || "",
-  followup: ai?.follow_up_required
-    ? "Follow-up required"
-    : "No follow-up required",
-});
-
-    console.log("🔥 AI OBJECT:", ai);
-
-    // ✅ Build clean summary (hide empty fields)
-    const lines = [];
-
-    if (ai?.patient_name?.trim()) lines.push(`Patient: ${ai.patient_name}`);
-    if (ai?.symptoms?.trim()) lines.push(`Symptoms: ${ai.symptoms}`);
-    if (ai?.medicines?.trim()) lines.push(`Medicines: ${ai.medicines}`);
-    if (ai?.doctor_notes?.trim()) lines.push(`Doctor Notes: ${ai.doctor_notes}`);
-    if (ai?.follow_up_required === true) lines.push(`Follow-up Required: Yes`);
-
-    const replyText = lines.length ? lines.join("\n") : "No AI response";
-
-    console.log("🔥 CLEAN SUMMARY:", replyText);
-
-    setAiText(replyText);
     setFilled(true);
 
-  } catch (err) {
-    console.error("❌ AI send failed:", err);
-    alert("Failed to send audio to AI");
+  } catch (error) {
+    console.error("Webhook error:", error);
   }
 };
 
