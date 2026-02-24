@@ -612,6 +612,13 @@ export default function CaptureVitals() {
     pulse: "",
   });
 
+  const [contact, setContact] = useState({
+  age: "",
+  location: "",
+  email: "",
+  phone: "",
+});
+
   // ✅ Resolve PatientId + Name from params OR navigate state OR session storage
   const [resolvedPatientId, setResolvedPatientId] = useState(patientIdParam || "");
 
@@ -713,14 +720,14 @@ export default function CaptureVitals() {
         <div className="mt-6 border-2 border-black bg-white rounded-md p-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Patient ID</Label>
-              <Field
-                value={resolvedPatientId || ""}
-                readOnly
-                placeholder="Patient ID"
-                leftIcon={<FiHash />}
-              />
-            </div>
+            <Label>Patient ID</Label>
+            <Field
+              value={resolvedPatientId}
+              onChange={setResolvedPatientId}
+              placeholder="Enter Patient ID"
+              leftIcon={<FiHash />}
+               />
+             </div>
 
             <div>
               <Label>Patient Name *</Label>
@@ -736,6 +743,60 @@ export default function CaptureVitals() {
             </div>
           </div>
         </div>
+        
+        <div className="mt-6 border-2 border-black bg-white rounded-md p-5">
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    
+    <div>
+      <Label>Location</Label>
+      <Field
+        value={contact.location}
+        onChange={(v) =>
+          setContact((p) => ({ ...p, location: v }))
+        }
+        placeholder="Enter location"
+      />
+    </div>
+
+    <div>
+      <Label>Age</Label>
+      <Field
+        value={contact.age}
+        onChange={(v) =>
+          setContact((p) => ({ ...p, age: v }))
+        }
+        placeholder="Enter a Age"
+      />
+    </div>
+
+    <div>
+      <Label>Email ID</Label>
+      <Field
+        value={contact.email}
+        onChange={(v) =>
+          setContact((p) => ({ ...p, email: v }))
+        }
+        placeholder="Enter email address"
+      />
+    </div>
+
+    <div>
+      <Label>Phone Number</Label>
+      <Field
+        value={contact.phone}
+        onChange={(v) =>
+          setContact((p) => ({ ...p, phone: v }))
+        }
+        placeholder="Enter phone number"
+      />
+    </div>
+
+  </div>
+</div>
+
+        
+
+        
 
         {/* Vitals */}
         <div className="mt-6 border-2 border-[#00B8DB] bg-white rounded-md overflow-hidden">

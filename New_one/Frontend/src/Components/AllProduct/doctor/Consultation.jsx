@@ -218,9 +218,12 @@ const [recordingTime, setRecordingTime] = useState(0);
 
 // ⭐⭐⭐ ADD HERE (immediately below recordingTime line)
 const [audioBlob, setAudioBlob] = useState(null);
+const [audioUrl, setAudioUrl] = useState(null);
+const audioRef = React.useRef(null);
 const mediaRecorderRef = React.useRef(null);
 const chunksRef = React.useRef([]);
 
+const [isPlaying, setIsPlaying] = useState(false);
   // AI pipeline
   const [sent, setSent] = useState(false);
   const [step, setStep] = useState(0);
@@ -299,9 +302,13 @@ const handleStart = async () => {
   };
 
   mediaRecorder.onstop = () => {
-    const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-    setAudioBlob(blob);
-  };
+  const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+  const url = URL.createObjectURL(blob);
+
+  setAudioBlob(blob);
+  setAudioUrl(url);
+  setIsPlaying(false);
+};
 
   mediaRecorder.start();
 
@@ -314,13 +321,7 @@ const handleStart = async () => {
 const handleStop = () => {
   if (!mediaRecorderRef.current) return;
 
-  mediaRecorderRef.current.onstop = () => {
-    const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-    setAudioBlob(blob);
-  };
-
   mediaRecorderRef.current.stop();
-
   setIsRecording(false);
   setIsPaused(false);
 };
@@ -611,25 +612,67 @@ const handleSendToAI = async () => {
                 <FiMic />
               </IconSquare>
             }
-          >
+           >
             <div className="flex items-center justify-between gap-3 border-2 border-black rounded-md bg-white p-4">
-              <div>
-                <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
-                  DURATION
-                </div>
-                <div className="mt-1 text-3xl font-extrabold text-black font-mono">
-                  {formatTime(recordingTime)}
-                </div>
-              </div>
 
-              <div className="flex items-center gap-2">
-                {isRecording ? (
-                  <Tag bg="bg-[#EAFBFF]">{isPaused ? "PAUSED" : "RECORDING"}</Tag>
-                ) : (
-                  <Tag bg="bg-white">READY</Tag>
-                )}
-              </div>
-            </div>
+    <div>
+      <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
+        DURATION
+      </div>
+      <div className="mt-1 text-3xl font-extrabold text-black font-mono">
+        {formatTime(recordingTime)}
+      </div>
+    </div>
+
+    <div className="flex items-center gap-2">
+      {isRecording ? (
+        <Tag bg="bg-[#EAFBFF]">{isPaused ? "PAUSED" : "RECORDING"}</Tag>
+      ) : (
+        audioBlob && (
+          <button
+  type="button"
+  onClick={() => {
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  }}
+  className="h-8 px-3 border-2 border-black rounded-sm bg-white text-xs font-extrabold uppercase inline-flex items-center gap-2"
+>
+  {isPlaying ? (
+    <>
+      <FiPause /> PAUSE
+    </>
+  ) : (
+    <>
+      <FiPlay /> PLAY
+    </>
+  )}
+</button>
+        )
+      )}
+    </div>
+
+  </div>
+
+  {/* 👇👇 ADD THIS RIGHT HERE 👇👇 */}
+  {audioBlob && (
+  <audio
+    ref={audioRef}
+    src={audioUrl}
+    className="hidden"
+    onEnded={() => setIsPlaying(false)}
+  />
+)}
+
+  {/* THEN your START / STOP / PAUSE buttons continue below */}
+  <div className="mt-4 grid grid-cols-3 gap-2"></div>
+
 
             <div className="mt-4 grid grid-cols-3 gap-2">
               {!isRecording ? (
@@ -683,16 +726,44 @@ const handleSendToAI = async () => {
               </button>
             </div>
 
-            <div className="mt-4 flex justify-end">
-              <PrimaryButton
-                onClick={handleSendToAI}
-                leftIcon={<FiCheck />}
-                disabled={!audioBlob}
-                className="min-w-[210px]"
-              >
-                {sent && !filled ? "PROCESSING..." : "SEND TO AI SYSTEM"}
-              </PrimaryButton>
-            </div>
+            <div className="mt-4 flex items-center justify-between gap-3">
+
+  {/* Upload Audio */}
+  <label className="h-9 px-3 border-2 border-black rounded-sm bg-white text-xs font-extrabold uppercase inline-flex items-center gap-2 cursor-pointer hover:brightness-95 active:brightness-90">
+    <FiUpload />
+    UPLOAD AUDIO
+    <input
+      type="file"
+      accept="audio/*"
+      className="hidden"
+      onChange={(e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const url = URL.createObjectURL(file);
+
+  setAudioBlob(file);
+  setAudioUrl(url);
+  setIsRecording(false);
+  setRecordingTime(0);
+  setIsPlaying(false);
+
+  alert("Audio uploaded successfully ✅");
+}}
+    />
+  </label>
+
+  {/* Smaller Send Button */}
+  <PrimaryButton
+    onClick={handleSendToAI}
+    leftIcon={<FiCheck />}
+    disabled={!audioBlob}
+    className="min-w-[170px]"
+  >
+    {sent && !filled ? "PROCESSING..." : "SEND TO AI"}
+  </PrimaryButton>
+
+</div>
 
             <div className="mt-3 text-sm text-black/55">
               Tip: record for a few seconds, then click{" "}
@@ -853,14 +924,7 @@ const handleSendToAI = async () => {
     </div>
   </div>
 
-  <div className="border-2 border-black rounded-md bg-white p-3">
-    <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
-      DIAGNOSIS
-    </div>
-    <div className="mt-1 text-sm text-black">
-      {filled ? report?.diagnosis : "—"}
-    </div>
-  </div>
+  
 
   <div className="border-2 border-black rounded-md bg-white p-3">
     <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
