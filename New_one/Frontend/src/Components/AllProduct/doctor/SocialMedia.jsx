@@ -50,6 +50,8 @@ import {
 } from "react-icons/fa";
 
 export default function SocialMedia() {
+  const TEXT_WEBHOOK_URL = "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/linkedin-post-agent_prod_dev";
+  const ACTION_WEBHOOK_URL = "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/okdecision";
   const [platform, setPlatform] = useState("LinkedIn");
   const [postType, setPostType] = useState("text");
   const [emojiIntensity, setEmojiIntensity] = useState("Balanced");
@@ -227,33 +229,127 @@ export default function SocialMedia() {
     setGeneratedPost(generatedPost + ctas[type]);
   };
 
+  const sendTextWebhook = async (postContent) => {
+  try {
+    const payload = {
+      platform,
+      postType,
+      contentIdea,
+      targetAudience: audience,
+      emojiIntensity,
+      generatedPost: postContent,
+      referenceImages: uploadedMedia.map(media => ({
+        name: media.name,
+        type: media.type
+      })),
+      timestamp: new Date().toISOString(),
+    };
+
+    await fetch(TEXT_WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    console.log("Webhook sent");
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const sendActionWebhook = async ({
+  actionType, // "post_now" or "schedule"
+  scheduledDateTime = null,
+}) => {
+  try {
+    const payload = {
+      actionType,
+      platform,
+      postType,
+      contentIdea,
+      targetAudience: audience,
+      emojiIntensity,
+      generatedPost,
+      referenceImages: uploadedMedia.map(media => ({
+        name: media.name,
+        type: media.type,
+      })),
+      createdAt: new Date().toISOString(),
+      scheduledDateTime,
+    };
+
+    const res = await fetch(ACTION_WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) throw new Error("Webhook failed");
+
+    console.log("Action webhook sent");
+  } catch (err) {
+    console.error("Action webhook error:", err);
+  }
+};
+
   const addHashtag = (tag) => {
     if (!generatedPost.includes(tag))
       setGeneratedPost(generatedPost + "\n" + tag);
   };
 
-  const handlePostNow = () => {
-    setPosting(true);
-    setTimeout(() => {
-      alert(`✅ Post published successfully on ${platform}!`);
-      setPopupOpen(null);
-      setPosting(false);
-    }, 1500);
-  };
+  const handlePostNow = async () => {
+  setPosting(true);
 
-  const handleSchedule = () => {
-    if (!scheduleDate || !scheduleTime) {
-      alert("Please select both date and time");
-      return;
-    }
-    setScheduling(true);
-    setTimeout(() => {
-      const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
-      alert(`📅 Post scheduled for ${scheduledDateTime.toLocaleString()} on ${platform}!`);
-      setPopupOpen(null);
-      setScheduling(false);
-    }, 1500);
-  };
+  try {
+    await sendActionWebhook({
+      actionType: "post_now",
+      scheduledDateTime: new Date().toISOString(),
+    });
+
+    alert(`✅ Post published successfully on ${platform}!`);
+    setPopupOpen(null);
+  } catch (err) {
+    alert("❌ Failed to send webhook");
+  } finally {
+    setPosting(false);
+  }
+};
+
+ const handleSchedule = async () => {
+  if (!scheduleDate || !scheduleTime) {
+    alert("Please select both date and time");
+    return;
+  }
+
+  setScheduling(true);
+
+  try {
+    const scheduledDateTime = new Date(
+      `${scheduleDate}T${scheduleTime}`
+    ).toISOString();
+
+    await sendActionWebhook({
+      actionType: "schedule",
+      scheduledDateTime,
+    });
+
+    alert(
+      `📅 Post scheduled for ${new Date(
+        scheduledDateTime
+      ).toLocaleString()}`
+    );
+
+    setPopupOpen(null);
+  } catch (err) {
+    alert("❌ Failed to schedule");
+  } finally {
+    setScheduling(false);
+  }
+};
 
   const getPostTypeIcon = (type) => {
     switch (type) {
