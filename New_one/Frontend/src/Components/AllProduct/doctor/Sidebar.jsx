@@ -206,7 +206,7 @@
 // }
 
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   FiGrid,
@@ -230,6 +230,16 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [doctor, setDoctor] = useState(null);
+  const [photo, setPhoto] = useState("");
+
+  useEffect(() => {
+    const savedDoctor = localStorage.getItem("doctorSettings");
+    const savedPhoto = localStorage.getItem("profilePhoto");
+
+    if (savedDoctor) setDoctor(JSON.parse(savedDoctor));
+    if (savedPhoto) setPhoto(savedPhoto);
+  }, []);
 
   const items = useMemo(
     () => [
@@ -310,9 +320,8 @@ export default function Sidebar() {
                   key={path}
                   onClick={() => safeNavigate(path)}
                   type="button"
-                  className={`${collapsedWrapper} ${
-                    active ? "bg-[#EAFBFF]" : "hover:bg-black/5"
-                  }`}
+                  className={`${collapsedWrapper} ${active ? "bg-[#EAFBFF]" : "hover:bg-black/5"
+                    }`}
                   title={label}
                 >
                   <span className={collapsedIconBox}>
@@ -368,11 +377,11 @@ export default function Sidebar() {
               onClick={() => safeNavigate(`${DOCTOR_BASE}/settings`)}
               className={`${collapsedWrapper} hover:bg-black/5`}
             >
-              <span 
+              <span
                 className={collapsedIconBox}
-                style={{ 
+                style={{
                   borderColor: "black",
-                  background: `linear-gradient(90deg, ${CYAN}, ${YELLOW})` 
+                  background: `linear-gradient(90deg, ${CYAN}, ${YELLOW})`
                 }}
               >
                 <FiUser className="text-white text-[18px]" />
@@ -393,33 +402,41 @@ export default function Sidebar() {
           </div>
         ) : (
           // ✅ EXPANDED FOOTER
-          <div className="px-3 py-3 space-y-2">
-            {/* Profile */}
-            <div className="rounded-lg border-2 border-black/10 bg-white p-3 flex items-center gap-3">
-              <div
-                className="h-10 w-10 rounded-full border-2 border-black flex items-center justify-center text-white shrink-0"
-                style={{ background: `linear-gradient(90deg, ${CYAN}, ${YELLOW})` }}
-              >
-                <FiUser />
-              </div>
-              <div className="leading-tight">
-                <div className="text-sm font-extrabold text-black">Dr. Sarah Chen</div>
-                <div className="text-xs font-semibold text-[#00B8DB]">Cardiologist</div>
-              </div>
+          <div className="rounded-lg border-2 border-black/10 bg-white p-3 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full border-2 border-black overflow-hidden shrink-0">
+              {photo ? (
+                <img src={photo} alt="Doctor" className="h-full w-full object-cover" />
+              ) : (
+                <div
+                  className="h-full w-full flex items-center justify-center text-white"
+                  style={{ background: `linear-gradient(90deg, ${CYAN}, ${YELLOW})` }}
+                >
+                  <FiUser />
+                </div>
+              )}
             </div>
 
-            {/* Logout */}
-            <button
-              onClick={() => alert("Logout (demo)")}
-              type="button"
-              className="w-full rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-extrabold text-black flex items-center justify-center gap-2 hover:bg-black/5"
-            >
-              <FiLogOut />
-              Logout
-            </button>
+            <div className="leading-tight">
+              <div className="text-sm font-extrabold text-black">
+                {doctor?.fullName || "Doctor Name"}
+              </div>
+              <div className="text-xs font-semibold text-[#00B8DB]">
+                {doctor?.specialization || "Specialization"}
+              </div>
+            {/* </div> */}
           </div>
-        )}
+           {/* Logout */}
+        <button
+          onClick={() => alert("Logout (demo)")}
+          type="button"
+          className="w-full rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-extrabold text-black flex items-center justify-center gap-2 hover:bg-black/5"
+        >
+          <FiLogOut />
+          Logout
+        </button>
       </div>
-    </aside>
+        )}
+    </div>
+       </aside>
   );
 }
