@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import {
   FiUpload,
@@ -13,18 +12,12 @@ import {
   FiType,
   FiSmile,
   FiTarget,
-  FiUsers,
   FiSend,
   FiBarChart2,
   FiZap,
   FiCheck,
   FiTrash2,
   FiPlay,
-  FiLink,
-  FiGlobe,
-  FiShare2,
-  FiPaperclip,
-  FiExternalLink
 } from "react-icons/fi";
 import {
   FaLinkedinIn,
@@ -40,35 +33,54 @@ import {
   FaHashtag,
   FaRocket,
   FaMagic,
-  FaChartLine,
   FaFileVideo,
-  FaLink as FaLinkIcon,
-  FaExternalLinkAlt,
-  FaShareAlt,
-  FaPaperclip as FaPaperclipIcon,
-  FaCheck
+  FaCheck,
 } from "react-icons/fa";
 
 export default function SocialMedia() {
-  const TEXT_WEBHOOK_URL = "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/linkedin-post-agent_prod_dev";
-  const ACTION_WEBHOOK_URL = "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/okdecision";
+  // ✅ Per-type webhook URLs (Generate + Action/Decision)
+  const WEBHOOKS = {
+    text: {
+      generate:
+        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/linkedin-post-agent_prod_dev",
+      action: "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/okdecision",
+    },
+    article: {
+      generate: "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/article",
+      action:
+        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/articleokdecision",
+    },
+    image: {
+      generate:
+        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/image-create",
+      action:
+        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/imageokdecision",
+    },
+    video: {
+      generate:
+        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/video-create",
+      action:
+        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/videookdecision",
+    },
+  };
+
   const [platform, setPlatform] = useState("LinkedIn");
-  const [postType, setPostType] = useState("text");
+  const [postType, setPostType] = useState("text"); // text | video | image | article
   const [emojiIntensity, setEmojiIntensity] = useState("Balanced");
   const [audience, setAudience] = useState("General");
   const [contentIdea, setContentIdea] = useState("");
   const [videoDuration, setVideoDuration] = useState(30);
+
   const [generatedPost, setGeneratedPost] = useState("");
   const [uploadedMedia, setUploadedMedia] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+
   const [posting, setPosting] = useState(false);
   const [scheduling, setScheduling] = useState(false);
+
   const [showOptimization, setShowOptimization] = useState(true);
   const [isUploadOptional, setIsUploadOptional] = useState(true);
-
-  // Link Icon States - Simple toggle for each platform
-
 
   const [popupOpen, setPopupOpen] = useState(null);
   const [scheduleDate, setScheduleDate] = useState("");
@@ -78,19 +90,63 @@ export default function SocialMedia() {
   const contentRef = useRef(null);
 
   const platforms = [
-    { name: "LinkedIn", icon: <FaLinkedinIn className="text-xl" />, color: "from-blue-500 to-blue-700" },
-    { name: "X", icon: <FaTwitter className="text-xl" />, color: "from-black to-gray-900" },
-    { name: "Instagram", icon: <FaInstagram className="text-xl" />, color: "from-pink-500 to-purple-600" },
-    { name: "Facebook", icon: <FaFacebookF className="text-xl" />, color: "from-blue-600 to-blue-800" },
-    { name: "TikTok", icon: <FaTiktok className="text-xl" />, color: "from-gray-900 to-black" },
-    { name: "YouTube", icon: <FaYoutube className="text-xl" />, color: "from-red-500 to-red-700" },
+    {
+      name: "LinkedIn",
+      icon: <FaLinkedinIn className="text-xl" />,
+      color: "from-blue-500 to-blue-700",
+    },
+    {
+      name: "X",
+      icon: <FaTwitter className="text-xl" />,
+      color: "from-black to-gray-900",
+    },
+    {
+      name: "Instagram",
+      icon: <FaInstagram className="text-xl" />,
+      color: "from-pink-500 to-purple-600",
+    },
+    {
+      name: "Facebook",
+      icon: <FaFacebookF className="text-xl" />,
+      color: "from-blue-600 to-blue-800",
+    },
+    {
+      name: "TikTok",
+      icon: <FaTiktok className="text-xl" />,
+      color: "from-gray-900 to-black",
+    },
+    {
+      name: "YouTube",
+      icon: <FaYoutube className="text-xl" />,
+      color: "from-red-500 to-red-700",
+    },
   ];
 
   const emojiLevels = [
-    { name: "None", icon: <FaRegSmile />, emojis: "", color: "from-gray-100 to-gray-200" },
-    { name: "Minimal", icon: <FaRegSmileBeam />, emojis: "✨", color: "from-blue-50 to-cyan-50" },
-    { name: "Balanced", icon: <FaSmileBeam />, emojis: "✨🚀", color: "from-cyan-50 to-blue-50" },
-    { name: "High", icon: <FaRegLaughBeam />, emojis: "🔥🚀✨", color: "from-orange-50 to-pink-50" },
+    {
+      name: "None",
+      icon: <FaRegSmile />,
+      emojis: "",
+      color: "from-gray-100 to-gray-200",
+    },
+    {
+      name: "Minimal",
+      icon: <FaRegSmileBeam />,
+      emojis: "✨",
+      color: "from-blue-50 to-cyan-50",
+    },
+    {
+      name: "Balanced",
+      icon: <FaSmileBeam />,
+      emojis: "✨🚀",
+      color: "from-cyan-50 to-blue-50",
+    },
+    {
+      name: "High",
+      icon: <FaRegLaughBeam />,
+      emojis: "🔥🚀✨",
+      color: "from-orange-50 to-pink-50",
+    },
   ];
 
   const audiences = [
@@ -108,22 +164,54 @@ export default function SocialMedia() {
     "#Growth",
   ];
 
+  // Add custom styles (only once)
+  useEffect(() => {
+    const styleId = "social-media-assistant-styles";
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = `
+      @keyframes scaleIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-scaleIn { animation: scaleIn 0.2s ease-out; }
+      .animate-slideDown { animation: slideDown 0.3s ease-out; }
+      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      .scrollbar-hide::-webkit-scrollbar { display: none; }
+    `;
+    document.head.appendChild(style);
+  }, []);
+
   // Initialize date/time and default content
   useEffect(() => {
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    setScheduleDate(tomorrow.toISOString().split('T')[0]);
+    setScheduleDate(tomorrow.toISOString().split("T")[0]);
     setScheduleTime("09:00");
 
-    // Set default content idea
-    setContentIdea("How to build an engaged community on social media through authentic content");
+    setContentIdea(
+      "How to build an engaged community on social media through authentic content"
+    );
+  }, []);
 
-    // Generate initial post
-    setTimeout(() => {
-      buildPost();
-    }, 100);
+  // Revoke object URLs on unmount
+  useEffect(() => {
+    return () => {
+      uploadedMedia.forEach((m) => {
+        try {
+          URL.revokeObjectURL(m.url);
+        } catch {}
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isReady =
@@ -134,54 +222,145 @@ export default function SocialMedia() {
     emojiIntensity &&
     (postType !== "video" || videoDuration);
 
+  // ✅ helper: get URLs by current postType
+  const getWebhookUrls = () => {
+    const urls = WEBHOOKS[postType] || WEBHOOKS.text;
+    return urls;
+  };
+
+  // ✅ generic POST JSON with better error logging
+  const postJson = async (url, payload) => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // If your n8n requires cookies/session, uncomment:
+      // credentials: "include",
+      body: JSON.stringify(payload),
+    });
+
+    const text = await res.text().catch(() => "");
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} ${res.statusText} - ${text}`);
+    }
+    return text;
+  };
+
+  // ✅ GENERATE webhook (per postType)
+  const sendGenerateWebhook = async (postContent) => {
+    try {
+      const { generate } = getWebhookUrls();
+
+      const payload = {
+        eventType: "generated_post",
+        platform,
+        postType,
+        contentIdea,
+        targetAudience: audience,
+        emojiIntensity,
+        generatedPost: postContent,
+        videoDuration: postType === "video" ? videoDuration : undefined,
+        referenceMedia: uploadedMedia.map((media) => ({
+          name: media.name,
+          type: media.type,
+          size: media.size,
+        })),
+        timestamp: new Date().toISOString(),
+      };
+
+      await postJson(generate, payload);
+      console.log("✅ Generate webhook sent:", postType);
+    } catch (err) {
+      console.error("❌ Generate webhook error:", err);
+    }
+  };
+
+  // ✅ ACTION webhook (per postType)
+  const sendActionWebhook = async ({
+    actionType, // post_now | schedule
+    scheduledDateTime = null,
+    postContent = generatedPost,
+  }) => {
+    const { action } = getWebhookUrls();
+
+    const payload = {
+      actionType,
+      platform,
+      postType,
+      contentIdea,
+      targetAudience: audience,
+      emojiIntensity,
+      generatedPost: postContent,
+      videoDuration: postType === "video" ? videoDuration : undefined,
+      referenceMedia: uploadedMedia.map((media) => ({
+        name: media.name,
+        type: media.type,
+        size: media.size,
+      })),
+      createdAt: new Date().toISOString(),
+      scheduledDateTime,
+    };
+
+    // Important: if this fails with "Failed to fetch", it's almost always CORS/network.
+    // Use proxy/backend if needed.
+    return await postJson(action, payload);
+  };
+
   const buildPost = () => {
     setIsGenerating(true);
 
     setTimeout(() => {
-      let emojis = emojiLevels.find(level => level.name === emojiIntensity)?.emojis || "";
-
+      const emojis =
+        emojiLevels.find((level) => level.name === emojiIntensity)?.emojis || "";
       let post = "";
 
       // Add media information
       if (uploadedMedia.length > 0) {
-        const images = uploadedMedia.filter(m => m.type.startsWith('image'));
-        const videos = uploadedMedia.filter(m => m.type.startsWith('video'));
+        const images = uploadedMedia.filter((m) => m.type.startsWith("image"));
+        const videos = uploadedMedia.filter((m) => m.type.startsWith("video"));
 
         if (images.length > 0) {
-          post += `📸 Images Attached: ${images.length} image${images.length > 1 ? 's' : ''}\n\n`;
+          post += `📸 Images Attached: ${images.length} image${
+            images.length > 1 ? "s" : ""
+          }\n\n`;
         }
         if (videos.length > 0) {
-          post += `🎥 Videos Attached: ${videos.length} video${videos.length > 1 ? 's' : ''}\n\n`;
+          post += `🎥 Videos Attached: ${videos.length} video${
+            videos.length > 1 ? "s" : ""
+          }\n\n`;
         }
       }
 
       // Build post content based on type
-      if (postType === "text")
+      if (postType === "text") {
         post += `Here's what I've learned:\n\n→ ${contentIdea}\n→ Focus on solving real problems\n→ Consistency beats perfection\n\nThe secret? Invisible work compounds.\n\n${emojis}`;
-      else if (postType === "video")
+      } else if (postType === "video") {
         post += `🎥 Video Script (${videoDuration}s)\n\nHook: Ever faced this?\n\n${contentIdea}\n\nCTA: Follow for more!\n\n${emojis}`;
-      else if (postType === "image")
+      } else if (postType === "image") {
         post += `🖼 Poster Caption:\n\n${contentIdea}\n\n${emojis}`;
-      else if (postType === "article")
+      } else if (postType === "article") {
         post += `📖 Article Outline\n\n${contentIdea}\n\n1. Problem\n2. Experience\n3. Lessons\n4. Takeaway\n\n${emojis}`;
+      }
 
-      // Add media details if any
+      // Add media details
       if (uploadedMedia.length > 0) {
         post += `\n\n📎 Media included:`;
         uploadedMedia.forEach((media, index) => {
-          if (media.type.startsWith('image')) {
+          if (media.type.startsWith("image"))
             post += `\n   • Image ${index + 1}: ${media.name}`;
-          } else if (media.type.startsWith('video')) {
+          else if (media.type.startsWith("video"))
             post += `\n   • Video ${index + 1}: ${media.name}`;
-          }
+          else post += `\n   • File ${index + 1}: ${media.name}`;
         });
       }
 
       // Add platform context
-      post += `\n\n#${platform.replace(/\s+/g, '')} #SocialMedia #ContentCreation`;
+      post += `\n\n#${platform.replace(/\s+/g, "")} #SocialMedia #ContentCreation`;
 
       setGeneratedPost(post);
       setIsGenerating(false);
+
+      // ✅ Send generate webhook based on selected postType
+      void sendGenerateWebhook(post);
     }, 600);
   };
 
@@ -192,20 +371,22 @@ export default function SocialMedia() {
   };
 
   const handleMediaUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const mediaFiles = files.map(file => ({
+    const files = Array.from(e.target.files || []);
+    const mediaFiles = files.map((file) => ({
       file,
       url: URL.createObjectURL(file),
       name: file.name,
       size: file.size,
-      type: file.type
+      type: file.type,
     }));
-    setUploadedMedia(prev => [...prev, ...mediaFiles]);
+    setUploadedMedia((prev) => [...prev, ...mediaFiles]);
   };
 
   const removeMedia = (index) => {
-    URL.revokeObjectURL(uploadedMedia[index].url);
-    setUploadedMedia(prev => prev.filter((_, i) => i !== index));
+    try {
+      URL.revokeObjectURL(uploadedMedia[index]?.url);
+    } catch {}
+    setUploadedMedia((prev) => prev.filter((_, i) => i !== index));
   };
 
   const applyImprovement = (type) => {
@@ -217,7 +398,9 @@ export default function SocialMedia() {
       stats: "\n\n📊 80% quit before results show.",
       emojis: generatedPost + " 🚀🔥✨",
     };
-    setGeneratedPost(upgrades[type] || generatedPost);
+    const next = upgrades[type] || generatedPost;
+    setGeneratedPost(next);
+    void sendGenerateWebhook(next);
   };
 
   const addCTA = (type) => {
@@ -226,158 +409,95 @@ export default function SocialMedia() {
       soft: "\n\nFollow for more insights.",
       strong: "\n\nComment YES if you agree 👇",
     };
-    setGeneratedPost(generatedPost + ctas[type]);
+    const next = generatedPost + (ctas[type] || "");
+    setGeneratedPost(next);
+    void sendGenerateWebhook(next);
   };
 
-  const sendTextWebhook = async (postContent) => {
-  try {
-    const payload = {
-      platform,
-      postType,
-      contentIdea,
-      targetAudience: audience,
-      emojiIntensity,
-      generatedPost: postContent,
-      referenceImages: uploadedMedia.map(media => ({
-        name: media.name,
-        type: media.type
-      })),
-      timestamp: new Date().toISOString(),
-    };
-
-    await fetch(TEXT_WEBHOOK_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    console.log("Webhook sent");
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-const sendActionWebhook = async ({
-  actionType, // "post_now" or "schedule"
-  scheduledDateTime = null,
-}) => {
-  try {
-    const payload = {
-      actionType,
-      platform,
-      postType,
-      contentIdea,
-      targetAudience: audience,
-      emojiIntensity,
-      generatedPost,
-      referenceImages: uploadedMedia.map(media => ({
-        name: media.name,
-        type: media.type,
-      })),
-      createdAt: new Date().toISOString(),
-      scheduledDateTime,
-    };
-
-    const res = await fetch(ACTION_WEBHOOK_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) throw new Error("Webhook failed");
-
-    console.log("Action webhook sent");
-  } catch (err) {
-    console.error("Action webhook error:", err);
-  }
-};
-
   const addHashtag = (tag) => {
-    if (!generatedPost.includes(tag))
-      setGeneratedPost(generatedPost + "\n" + tag);
+    if (!generatedPost.includes(tag)) {
+      const next = generatedPost + "\n" + tag;
+      setGeneratedPost(next);
+      void sendGenerateWebhook(next);
+    }
   };
 
   const handlePostNow = async () => {
-  setPosting(true);
+    setPosting(true);
+    try {
+      await sendActionWebhook({
+        actionType: "post_now",
+        scheduledDateTime: new Date().toISOString(),
+        postContent: generatedPost,
+      });
 
-  try {
-    await sendActionWebhook({
-      actionType: "post_now",
-      scheduledDateTime: new Date().toISOString(),
-    });
+      alert(`✅ Post published successfully on ${platform}!`);
+      setPopupOpen(null);
+    } catch (err) {
+      console.error("❌ Post now failed:", err);
+      alert("❌ Failed to send webhook (CORS/Network issue likely)");
+    } finally {
+      setPosting(false);
+    }
+  };
 
-    alert(`✅ Post published successfully on ${platform}!`);
-    setPopupOpen(null);
-  } catch (err) {
-    alert("❌ Failed to send webhook");
-  } finally {
-    setPosting(false);
-  }
-};
+  const handleSchedule = async () => {
+    if (!scheduleDate || !scheduleTime) {
+      alert("Please select both date and time");
+      return;
+    }
 
- const handleSchedule = async () => {
-  if (!scheduleDate || !scheduleTime) {
-    alert("Please select both date and time");
-    return;
-  }
+    setScheduling(true);
+    try {
+      const scheduledDateTime = new Date(
+        `${scheduleDate}T${scheduleTime}`
+      ).toISOString();
 
-  setScheduling(true);
+      await sendActionWebhook({
+        actionType: "schedule",
+        scheduledDateTime,
+        postContent: generatedPost,
+      });
 
-  try {
-    const scheduledDateTime = new Date(
-      `${scheduleDate}T${scheduleTime}`
-    ).toISOString();
-
-    await sendActionWebhook({
-      actionType: "schedule",
-      scheduledDateTime,
-    });
-
-    alert(
-      `📅 Post scheduled for ${new Date(
-        scheduledDateTime
-      ).toLocaleString()}`
-    );
-
-    setPopupOpen(null);
-  } catch (err) {
-    alert("❌ Failed to schedule");
-  } finally {
-    setScheduling(false);
-  }
-};
+      alert(`📅 Post scheduled for ${new Date(scheduledDateTime).toLocaleString()}`);
+      setPopupOpen(null);
+    } catch (err) {
+      console.error("❌ Schedule failed:", err);
+      alert("❌ Failed to schedule (CORS/Network issue likely)");
+    } finally {
+      setScheduling(false);
+    }
+  };
 
   const getPostTypeIcon = (type) => {
     switch (type) {
-      case "text": return <FiType className="text-xl" />;
-      case "video": return <FiVideo className="text-xl" />;
-      case "image": return <FiImage className="text-xl" />;
-      case "article": return <FiFileText className="text-xl" />;
-      default: return "📝";
+      case "text":
+        return <FiType className="text-xl" />;
+      case "video":
+        return <FiVideo className="text-xl" />;
+      case "image":
+        return <FiImage className="text-xl" />;
+      case "article":
+        return <FiFileText className="text-xl" />;
+      default:
+        return "📝";
     }
   };
 
   const formatFileSize = (bytes) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
-
-
 
   // Auto-generate post when relevant fields change
   useEffect(() => {
-    if (contentIdea.trim()) {
-      const timer = setTimeout(() => {
-        buildPost();
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [platform, postType, emojiIntensity, audience, contentIdea]);
+    if (!contentIdea.trim()) return;
+    const timer = setTimeout(() => {
+      buildPost();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [platform, postType, emojiIntensity, audience, contentIdea, videoDuration, uploadedMedia]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
@@ -398,9 +518,8 @@ const sendActionWebhook = async ({
             {/* Platform Selection */}
             <Section title="Select Platform" icon={<FiSend />}>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {platforms.map(p => (
+                {platforms.map((p) => (
                   <div key={p.name} className="relative">
-                    {/* Link icon outside the card */}
                     {platform === p.name && (
                       <div className="absolute -top-2 -right-2 bg-white border rounded-full p-1 shadow z-10">
                         <FaCheck className="text-green-500" size={14} />
@@ -412,7 +531,11 @@ const sendActionWebhook = async ({
                       onClick={() => setPlatform(p.name)}
                       className="flex flex-col items-center p-4"
                     >
-                      <div className={`p-3 rounded-full mb-3 ${platform === p.name ? 'bg-white/20' : 'bg-gray-100'}`}>
+                      <div
+                        className={`p-3 rounded-full mb-3 ${
+                          platform === p.name ? "bg-white/20" : "bg-gray-100"
+                        }`}
+                      >
                         {p.icon}
                       </div>
                       <span className="font-medium text-sm">{p.name}</span>
@@ -425,16 +548,14 @@ const sendActionWebhook = async ({
             {/* Post Type */}
             <Section title="Post Type" icon={<FiType />}>
               <div className="grid grid-cols-2 gap-3">
-                {["text", "video", "image", "article"].map(t => (
+                {["text", "video", "image", "article"].map((t) => (
                   <CardSelect
                     key={t}
                     active={postType === t}
                     onClick={() => setPostType(t)}
                     className="flex flex-col items-center p-4"
                   >
-                    <div className="text-2xl mb-2">
-                      {getPostTypeIcon(t)}
-                    </div>
+                    <div className="text-2xl mb-2">{getPostTypeIcon(t)}</div>
                     <span className="font-medium capitalize text-sm">{t}</span>
                   </CardSelect>
                 ))}
@@ -451,7 +572,9 @@ const sendActionWebhook = async ({
                     max="300"
                     step="15"
                     value={videoDuration}
-                    onChange={(e) => setVideoDuration(parseInt(e.target.value))}
+                    onChange={(e) =>
+                      setVideoDuration(parseInt(e.target.value, 10))
+                    }
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-cyan-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg"
                   />
                   <div className="flex justify-between items-center">
@@ -478,27 +601,38 @@ const sendActionWebhook = async ({
                     Optional Upload
                   </label>
                   <span className="text-xs text-gray-500">
-                    {uploadedMedia.length} file{uploadedMedia.length !== 1 ? 's' : ''} uploaded
+                    {uploadedMedia.length} file
+                    {uploadedMedia.length !== 1 ? "s" : ""} uploaded
                   </span>
                 </div>
 
                 <label
                   onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl min-h-32 flex flex-col items-center justify-center cursor-pointer transition-all ${uploadedMedia.length > 0
-                    ? "border-green-400 bg-green-50"
-                    : "border-gray-300 hover:border-cyan-400 hover:bg-cyan-50"
-                    }`}
+                  className={`border-2 border-dashed rounded-xl min-h-32 flex flex-col items-center justify-center cursor-pointer transition-all ${
+                    uploadedMedia.length > 0
+                      ? "border-green-400 bg-green-50"
+                      : "border-gray-300 hover:border-cyan-400 hover:bg-cyan-50"
+                  }`}
                 >
-                  <FiUpload className={`text-3xl mb-3 ${uploadedMedia.length > 0 ? "text-green-500" : "text-gray-400"
-                    }`} />
-                  <span className={`font-medium ${uploadedMedia.length > 0 ? "text-green-600" : "text-gray-500"
-                    }`}>
-                    {uploadedMedia.length > 0 ? "Add more files" : "Click to upload images/videos"}
+                  <FiUpload
+                    className={`text-3xl mb-3 ${
+                      uploadedMedia.length > 0 ? "text-green-500" : "text-gray-400"
+                    }`}
+                  />
+                  <span
+                    className={`font-medium ${
+                      uploadedMedia.length > 0 ? "text-green-600" : "text-gray-500"
+                    }`}
+                  >
+                    {uploadedMedia.length > 0
+                      ? "Add more files"
+                      : "Click to upload images/videos"}
                   </span>
                   <span className="text-sm mt-1 text-gray-500">
                     PNG, JPG, MP4, MOV up to 50MB
                   </span>
                 </label>
+
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -511,11 +645,14 @@ const sendActionWebhook = async ({
                 {uploadedMedia.length > 0 && (
                   <div className="grid grid-cols-2 gap-2">
                     {uploadedMedia.map((media, index) => (
-                      <div key={index} className="relative group border rounded-lg overflow-hidden bg-gray-50">
+                      <div
+                        key={index}
+                        className="relative group border rounded-lg overflow-hidden bg-gray-50"
+                      >
                         <div className="p-3">
                           <div className="flex items-start gap-2">
                             <div className="p-2 bg-gray-100 rounded-lg">
-                              {media.type.startsWith('image') ? (
+                              {media.type.startsWith("image") ? (
                                 <FiImage className="text-gray-600" />
                               ) : (
                                 <FaFileVideo className="text-gray-600" />
@@ -537,7 +674,7 @@ const sendActionWebhook = async ({
                             </button>
                           </div>
 
-                          {media.type.startsWith('image') && (
+                          {media.type.startsWith("image") && (
                             <div className="mt-2">
                               <img
                                 src={media.url}
@@ -547,11 +684,13 @@ const sendActionWebhook = async ({
                             </div>
                           )}
 
-                          {media.type.startsWith('video') && (
+                          {media.type.startsWith("video") && (
                             <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-100">
                               <div className="flex items-center gap-2 text-blue-600">
                                 <FaFileVideo />
-                                <span className="text-xs font-medium">Video file ready</span>
+                                <span className="text-xs font-medium">
+                                  Video file ready
+                                </span>
                               </div>
                             </div>
                           )}
@@ -577,7 +716,9 @@ const sendActionWebhook = async ({
                 </span>
                 <div className="flex gap-1">
                   <span className="text-xs text-gray-500">💡</span>
-                  <span className="text-xs text-gray-500">Be specific and clear</span>
+                  <span className="text-xs text-gray-500">
+                    Be specific and clear
+                  </span>
                 </div>
               </div>
             </Section>
@@ -585,14 +726,15 @@ const sendActionWebhook = async ({
             {/* Target Audience */}
             <Section title="Target Audience" icon={<FiTarget />}>
               <div className="flex flex-wrap gap-3">
-                {audiences.map(a => (
+                {audiences.map((a) => (
                   <button
                     key={a.name}
                     onClick={() => setAudience(a.name)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all shadow-sm hover:shadow-md ${audience === a.name
-                      ? `bg-gradient-to-r ${a.color} text-white shadow-md scale-105`
-                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                      }`}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all shadow-sm hover:shadow-md ${
+                      audience === a.name
+                        ? `bg-gradient-to-r ${a.color} text-white shadow-md scale-105`
+                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                    }`}
                   >
                     <span className="text-lg">{a.icon}</span>
                     <span>{a.name}</span>
@@ -604,16 +746,19 @@ const sendActionWebhook = async ({
             {/* Emoji Intensity */}
             <Section title="Emoji Intensity" icon={<FiSmile />}>
               <div className="grid grid-cols-4 gap-4 text-center">
-                {emojiLevels.map(level => (
+                {emojiLevels.map((level) => (
                   <div
                     key={level.name}
                     onClick={() => setEmojiIntensity(level.name)}
                     className="cursor-pointer"
                   >
-                    <div className={`w-12 h-12 mx-auto rounded-full border-2 flex items-center justify-center text-xl mb-2 transition-all ${emojiIntensity === level.name
-                      ? "border-cyan-400 bg-gradient-to-r from-cyan-50 to-blue-50 shadow-sm"
-                      : "border-gray-200 hover:border-gray-300"
-                      }`}>
+                    <div
+                      className={`w-12 h-12 mx-auto rounded-full border-2 flex items-center justify-center text-xl mb-2 transition-all ${
+                        emojiIntensity === level.name
+                          ? "border-cyan-400 bg-gradient-to-r from-cyan-50 to-blue-50 shadow-sm"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
                       {level.icon}
                     </div>
                     <p className="text-sm font-medium">{level.name}</p>
@@ -626,10 +771,11 @@ const sendActionWebhook = async ({
             <button
               disabled={!isReady || isGenerating}
               onClick={buildPost}
-              className={`w-full py-4 rounded-2xl text-white font-semibold text-lg flex items-center justify-center gap-3 transition-all ${isReady
-                ? "bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 shadow-lg hover:shadow-xl hover:scale-[1.02]"
-                : "bg-gradient-to-r from-cyan-200 to-blue-300 opacity-70 cursor-not-allowed"
-                }`}
+              className={`w-full py-4 rounded-2xl text-white font-semibold text-lg flex items-center justify-center gap-3 transition-all ${
+                isReady
+                  ? "bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                  : "bg-gradient-to-r from-cyan-200 to-blue-300 opacity-70 cursor-not-allowed"
+              }`}
             >
               {isGenerating ? (
                 <>
@@ -663,7 +809,9 @@ const sendActionWebhook = async ({
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                       title="Regenerate"
                     >
-                      <FiRefreshCw className={`${isGenerating ? 'animate-spin' : ''}`} />
+                      <FiRefreshCw
+                        className={`${isGenerating ? "animate-spin" : ""}`}
+                      />
                     </button>
                     <button
                       onClick={copyPost}
@@ -686,14 +834,14 @@ const sendActionWebhook = async ({
               >
                 {generatedPost ? (
                   <div className="space-y-4">
-                    {/* Show uploaded media previews */}
+                    {/* Media Preview */}
                     {uploadedMedia.length > 0 && (
                       <div className="mb-4 pb-4 border-b border-gray-200">
                         <div className="flex items-center gap-2 mb-3">
-                          {uploadedMedia.some(m => m.type.startsWith('image')) && (
+                          {uploadedMedia.some((m) => m.type.startsWith("image")) && (
                             <FiImage className="text-blue-500" />
                           )}
-                          {uploadedMedia.some(m => m.type.startsWith('video')) && (
+                          {uploadedMedia.some((m) => m.type.startsWith("video")) && (
                             <FiVideo className="text-red-500" />
                           )}
                           <span className="font-medium text-gray-700">
@@ -702,8 +850,11 @@ const sendActionWebhook = async ({
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           {uploadedMedia.map((media, index) => (
-                            <div key={index} className="relative rounded-lg overflow-hidden border border-gray-200 bg-white">
-                              {media.type.startsWith('image') ? (
+                            <div
+                              key={index}
+                              className="relative rounded-lg overflow-hidden border border-gray-200 bg-white"
+                            >
+                              {media.type.startsWith("image") ? (
                                 <>
                                   <img
                                     src={media.url}
@@ -711,7 +862,9 @@ const sendActionWebhook = async ({
                                     className="w-full h-32 object-cover"
                                   />
                                   <div className="p-2 bg-white border-t">
-                                    <p className="text-xs text-gray-600 truncate">{media.name}</p>
+                                    <p className="text-xs text-gray-600 truncate">
+                                      {media.name}
+                                    </p>
                                   </div>
                                 </>
                               ) : (
@@ -724,7 +877,9 @@ const sendActionWebhook = async ({
                                     </div>
                                   </div>
                                   <div className="p-2 bg-white border-t">
-                                    <p className="text-xs text-gray-600 truncate">{media.name}</p>
+                                    <p className="text-xs text-gray-600 truncate">
+                                      {media.name}
+                                    </p>
                                   </div>
                                 </>
                               )}
@@ -734,7 +889,6 @@ const sendActionWebhook = async ({
                       </div>
                     )}
 
-                    {/* Generated text content */}
                     <div className="text-gray-800 leading-relaxed font-sans whitespace-pre-line">
                       {generatedPost}
                     </div>
@@ -742,7 +896,9 @@ const sendActionWebhook = async ({
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-gray-400">
                     <div className="text-5xl mb-4">📝</div>
-                    <p className="text-lg font-medium text-gray-500">Your generated post will appear here</p>
+                    <p className="text-lg font-medium text-gray-500">
+                      Your generated post will appear here
+                    </p>
                     <p className="text-sm mt-2 text-gray-400">
                       Fill in the fields to generate your post
                     </p>
@@ -830,7 +986,7 @@ const sendActionWebhook = async ({
                             Suggested Hashtags
                           </h4>
                           <div className="flex flex-wrap gap-2">
-                            {hashtags.map(tag => (
+                            {hashtags.map((tag) => (
                               <Chip key={tag} onClick={() => addHashtag(tag)}>
                                 {tag}
                               </Chip>
@@ -867,7 +1023,7 @@ const sendActionWebhook = async ({
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="font-medium text-gray-700">Platform:</span>
                     <span className="flex items-center gap-2 font-medium">
-                      {platforms.find(p => p.name === platform)?.icon}
+                      {platforms.find((p) => p.name === platform)?.icon}
                       {platform}
                     </span>
                   </div>
@@ -875,7 +1031,6 @@ const sendActionWebhook = async ({
                     <span className="font-medium text-gray-700">Post Type:</span>
                     <span className="capitalize font-medium">{postType}</span>
                   </div>
-
                 </div>
 
                 <button
@@ -921,7 +1076,7 @@ const sendActionWebhook = async ({
                       type="date"
                       value={scheduleDate}
                       onChange={(e) => setScheduleDate(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
+                      min={new Date().toISOString().split("T")[0]}
                       className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 transition-all"
                     />
                   </div>
@@ -998,10 +1153,11 @@ const Header = ({ title, actions }) => (
 const CardSelect = ({ active, children, className = "", ...props }) => (
   <button
     {...props}
-    className={`border-2 rounded-xl p-4 text-center transition-all w-full ${className} ${active
-      ? "border-cyan-400 bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 shadow-sm"
-      : "border-gray-200 hover:border-gray-300"
-      }`}
+    className={`border-2 rounded-xl p-4 text-center transition-all w-full ${className} ${
+      active
+        ? "border-cyan-400 bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 shadow-sm"
+        : "border-gray-200 hover:border-gray-300"
+    }`}
   >
     {children}
   </button>
@@ -1029,13 +1185,15 @@ const GradientBtn = ({ green, blue, children, disabled, icon, ...props }) => (
   <button
     {...props}
     disabled={disabled}
-    className={`flex-1 py-4 rounded-xl font-semibold text-white flex items-center justify-center gap-3 transition-all ${disabled
-      ? "opacity-70 cursor-not-allowed"
-      : "hover:shadow-lg transform hover:-translate-y-0.5"
-      } ${green
+    className={`flex-1 py-4 rounded-xl font-semibold text-white flex items-center justify-center gap-3 transition-all ${
+      disabled
+        ? "opacity-70 cursor-not-allowed"
+        : "hover:shadow-lg transform hover:-translate-y-0.5"
+    } ${
+      green
         ? "bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700"
         : "bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600"
-      }`}
+    }`}
   >
     {icon}
     {children}
@@ -1044,56 +1202,13 @@ const GradientBtn = ({ green, blue, children, disabled, icon, ...props }) => (
 
 const Score = ({ title, value, green, blue }) => (
   <div
-    className={`rounded-xl p-4 border ${green
-      ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800"
-      : "bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-800"
-      }`}
+    className={`rounded-xl p-4 border ${
+      green
+        ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800"
+        : "bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-800"
+    }`}
   >
     <p className="font-semibold text-sm mb-2">{title}</p>
     <p className="text-3xl font-bold">{value}</p>
   </div>
 );
-
-// Add custom styles
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes scaleIn {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-  
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  .animate-scaleIn {
-    animation: scaleIn 0.2s ease-out;
-  }
-  
-  .animate-slideDown {
-    animation: slideDown 0.3s ease-out;
-  }
-  
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-`;
-document.head.appendChild(style);
