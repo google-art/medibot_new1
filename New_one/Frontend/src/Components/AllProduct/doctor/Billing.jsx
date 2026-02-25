@@ -565,7 +565,7 @@
 // };
 // export default Billing;
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   FiDownload,
   FiTrendingUp,
@@ -591,6 +591,10 @@ const sanitizeFee = (v) => {
 };
 
 const PAYMENT_METHODS = ["Cash", "UPI", "Card", "Net Banking", "Paytm", "PhonePe"];
+
+const STORE_URL = "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/billing-summary/store";
+
+const GET_URL = "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/billing-summary/get";
 
 /* ---------- UI ---------- */
 
@@ -905,37 +909,85 @@ const Billing = () => {
   const [markPaidTarget, setMarkPaidTarget] = useState(null);
   const [markPaidMethod, setMarkPaidMethod] = useState("");
 
+  const fetchBillingSummary = async () => {
+    try {
+      const res = await fetch(GET_URL);
+      const data = await res.json();
+
+      if (!data?.length) return;
+
+      // latest row from sheet
+      const latest = data[data.length - 1];
+
+      console.log("Latest summary from sheet:", latest);
+
+      // later you can set state here if needed
+      // setSheetSummary(latest);
+
+    } catch (err) {
+      console.error("GET billing failed", err);
+    }
+  };
+
+  const autoSaveDailySummary = async () => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+
+      // prevent duplicate save per day
+      const lastSaved = localStorage.getItem("billing_last_saved");
+      if (lastSaved === today) return;
+
+      await fetch(STORE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          date: today,
+          totalRevenue: totals.paid,
+          pending: totals.pending,
+          overdue: totals.overdue,
+        }),
+      });
+
+      localStorage.setItem("billing_last_saved", today);
+      console.log("Daily billing saved");
+    } catch (err) {
+      console.error("Auto save failed:", err);
+    }
+  };
+
   const totals = useMemo(() => {
     const now = new Date();
 
-const applyDateFilter = (r) => {
-  if (revenueFilter === "all") return true;
+    const applyDateFilter = (r) => {
+      if (revenueFilter === "all") return true;
 
-  const recordDate = new Date(r.date);
+      const recordDate = new Date(r.date);
 
-  if (revenueFilter === "day") {
-    return recordDate.toDateString() === now.toDateString();
-  }
+      if (revenueFilter === "day") {
+        return recordDate.toDateString() === now.toDateString();
+      }
 
-  if (revenueFilter === "week") {
-    const firstDay = new Date(now);
-    firstDay.setDate(now.getDate() - now.getDay());
-    return recordDate >= firstDay;
-  }
+      if (revenueFilter === "week") {
+        const firstDay = new Date(now);
+        firstDay.setDate(now.getDate() - now.getDay());
+        return recordDate >= firstDay;
+      }
 
-  if (revenueFilter === "month") {
-    return (
-      recordDate.getMonth() === now.getMonth() &&
-      recordDate.getFullYear() === now.getFullYear()
-    );
-  }
+      if (revenueFilter === "month") {
+        return (
+          recordDate.getMonth() === now.getMonth() &&
+          recordDate.getFullYear() === now.getFullYear()
+        );
+      }
 
-  if (revenueFilter === "year") {
-    return recordDate.getFullYear() === now.getFullYear();
-  }
+      if (revenueFilter === "year") {
+        return recordDate.getFullYear() === now.getFullYear();
+      }
 
-  return true;
-};
+      return true;
+    };
     const filteredRecords = records.filter(applyDateFilter);
 
     const paid = filteredRecords
@@ -961,7 +1013,13 @@ const applyDateFilter = (r) => {
       defaultFee: 200,
     };
   }, [records, revenueFilter]);
+
+  useEffect(() => {
+    fetchBillingSummary();   // GET from sheet
+    autoSaveDailySummary();  // POST daily save
+  }, []); // run only once when page loads
   // ✅ patient summary (counts)
+  
   const patientSummary = useMemo(() => {
     const paid = records.filter((r) => r.status === "paid").length;
     const pending = records.filter((r) => r.status === "pending").length;
@@ -1255,45 +1313,7 @@ const applyDateFilter = (r) => {
           ) : null}
         </div>
 
-        {/* Payment Summary */}
-        <div className="mt-8 border-2 border-black bg-white rounded-md p-4">
-          <div className="font-extrabold text-sm text-black uppercase">
-            Payment Summary
-          </div>
 
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-            <SummaryCard
-              title="PAID"
-              value={totals.paid}
-              subtitle={`${totals.paidCount} transactions`}
-              border="border-[#00C950]"
-              icon={<FiCheckCircle className="text-[#00C950]" />}
-            />
-            <SummaryCard
-              title="PENDING"
-              value={totals.pending}
-              subtitle={`${totals.pendingCount} transactions`}
-              border="border-[#F0B100]"
-              icon={<FiClock className="text-[#F0B100]" />}
-            />
-            <SummaryCard
-              title="OVERDUE"
-              value={totals.overdue}
-              subtitle={`${totals.overdueCount} transactions`}
-              border="border-[#FF2D2D]"
-              icon={<FiAlertCircle className="text-[#FF2D2D]" />}
-            />
-          </div>
-
-          <div className="mt-4 flex items-center justify-between border-t border-black/10 pt-4">
-            <div className="text-sm font-extrabold text-black uppercase">
-              Total Expected
-            </div>
-            <div className="text-xl font-extrabold text-black">
-              ₹{formatINR(totals.total)}
-            </div>
-          </div>
-        </div>
       </main>
 
       {/* ✅ Mark Paid Modal */}
