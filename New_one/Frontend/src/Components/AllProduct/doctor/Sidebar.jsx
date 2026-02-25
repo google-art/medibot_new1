@@ -402,7 +402,7 @@ export default function Sidebar() {
           </div>
         ) : (
           // ✅ EXPANDED FOOTER
-          <div className="rounded-lg border-2 border-black/10 bg-white p-3 flex items-center gap-3">
+          <div className="rounded-lg border-2 border-black/10 bg-white p-3 flex gap-3">
             <div className="h-10 w-10 rounded-full border-2 border-black overflow-hidden shrink-0">
               {photo ? (
                 <img src={photo} alt="Doctor" className="h-full w-full object-cover" />
@@ -416,14 +416,14 @@ export default function Sidebar() {
               )}
             </div>
 
-            <div className="w-full border-t p-3 space-y-3">
+            <div className="flex-1 min-w-0 space-y-3">
 
               {/* User info */}
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="min-w-0">
 
-             
 
-                <div className="min-w-0">
+
+                <div className="flex-1 min-w-0">
                   <div className="text-sm font-extrabold text-black truncate">
                     {doctor?.fullName || "Doctor Name"}
                   </div>
@@ -438,7 +438,7 @@ export default function Sidebar() {
               {/* Logout */}
               <button
                 onClick={() => alert("Logout (demo)")}
-                className="w-full rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-extrabold text-black flex items-center justify-center gap-2 hover:bg-black/5 transition"
+                className="w-full h-9 rounded-md border-2 border-black bg-white text-sm font-extrabold text-black flex items-center justify-center gap-2 hover:bg-black/5 transition"
               >
                 <FiLogOut />
                 Logout

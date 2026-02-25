@@ -613,11 +613,15 @@ export default function CaptureVitals() {
   });
 
   const [contact, setContact] = useState({
-  age: "",
-  location: "",
-  email: "",
-  phone: "",
-});
+    age: "",
+    location: "",
+    email: "",
+    phone: "",
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+
 
   // ✅ Resolve PatientId + Name from params OR navigate state OR session storage
   const [resolvedPatientId, setResolvedPatientId] = useState(patientIdParam || "");
@@ -651,6 +655,83 @@ export default function CaptureVitals() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location?.state, patientIdParam]);
+
+  // 🔍 Fetch patient details from backend
+  const fetchPatientDetails = async (id) => {
+    const trimmedId = id.trim();
+
+    // ❌ If less than 7 characters → clear everything
+    if (trimmedId.length < 7) {
+      setPatientName("");
+      setContact({
+        age: "",
+        location: "",
+        email: "",
+        phone: "",
+      });
+      setNotFound(false);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setNotFound(false);
+
+    try {
+      // ⏳ 4 second timeout protection
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+
+      const res = await fetch(
+        "http://localhost:3001/api/medibot/get-patient-details",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ patientId: trimmedId }),
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeout);
+
+      const response = await res.json();
+
+      if (!Array.isArray(response) || response.length === 0) {
+        setNotFound(true);
+        setPatientName("");
+        setContact({
+          age: "",
+          location: "",
+          email: "",
+          phone: "",
+        });
+      } else {
+        const data = response[0];
+
+        setPatientName(data.Patient_name || "");
+        setContact({
+          age: data.Age || "",
+          location: data.location || "",
+          email: data["email_id "] || "",
+          phone: data["phone_number "] || "",
+        });
+      }
+
+    } catch (err) {
+      console.error("Timeout or error:", err);
+
+      setNotFound(true);
+      setPatientName("");
+      setContact({
+        age: "",
+        location: "",
+        email: "",
+        phone: "",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const canProceed = useMemo(() => {
     return (
@@ -720,14 +801,28 @@ export default function CaptureVitals() {
         <div className="mt-6 border-2 border-black bg-white rounded-md p-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-            <Label>Patient ID</Label>
-            <Field
-              value={resolvedPatientId}
-              onChange={setResolvedPatientId}
-              placeholder="Enter Patient ID"
-              leftIcon={<FiHash />}
-               />
-             </div>
+              <Label>Patient ID</Label>
+              <Field
+                value={resolvedPatientId}
+                onChange={(val) => {
+                  setResolvedPatientId(val);
+                  fetchPatientDetails(val);   // 👈 THIS is the key change
+                }}
+                placeholder="Enter Patient ID"
+                leftIcon={<FiHash />}
+              />
+              {loading && (
+                <div className="text-xs text-blue-600 mt-2">
+                  🔄 Fetching patient details...
+                </div>
+              )}
+
+              {notFound && (
+                <div className="text-xs text-red-600 mt-2">
+                  ❌ No patient found for this ID
+                </div>
+              )}
+            </div>
 
             <div>
               <Label>Patient Name *</Label>
@@ -743,60 +838,60 @@ export default function CaptureVitals() {
             </div>
           </div>
         </div>
-        
+
         <div className="mt-6 border-2 border-black bg-white rounded-md p-5">
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-    
-    <div>
-      <Label>Location</Label>
-      <Field
-        value={contact.location}
-        onChange={(v) =>
-          setContact((p) => ({ ...p, location: v }))
-        }
-        placeholder="Enter location"
-      />
-    </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-    <div>
-      <Label>Age</Label>
-      <Field
-        value={contact.age}
-        onChange={(v) =>
-          setContact((p) => ({ ...p, age: v }))
-        }
-        placeholder="Enter a Age"
-      />
-    </div>
+            <div>
+              <Label>Location</Label>
+              <Field
+                value={contact.location}
+                onChange={(v) =>
+                  setContact((p) => ({ ...p, location: v }))
+                }
+                placeholder="Enter location"
+              />
+            </div>
 
-    <div>
-      <Label>Email ID</Label>
-      <Field
-        value={contact.email}
-        onChange={(v) =>
-          setContact((p) => ({ ...p, email: v }))
-        }
-        placeholder="Enter email address"
-      />
-    </div>
+            <div>
+              <Label>Age</Label>
+              <Field
+                value={contact.age}
+                onChange={(v) =>
+                  setContact((p) => ({ ...p, age: v }))
+                }
+                placeholder="Enter a Age"
+              />
+            </div>
 
-    <div>
-      <Label>Phone Number</Label>
-      <Field
-        value={contact.phone}
-        onChange={(v) =>
-          setContact((p) => ({ ...p, phone: v }))
-        }
-        placeholder="Enter phone number"
-      />
-    </div>
+            <div>
+              <Label>Email ID</Label>
+              <Field
+                value={contact.email}
+                onChange={(v) =>
+                  setContact((p) => ({ ...p, email: v }))
+                }
+                placeholder="Enter email address"
+              />
+            </div>
 
-  </div>
-</div>
+            <div>
+              <Label>Phone Number</Label>
+              <Field
+                value={contact.phone}
+                onChange={(v) =>
+                  setContact((p) => ({ ...p, phone: v }))
+                }
+                placeholder="Enter phone number"
+              />
+            </div>
 
-        
+          </div>
+        </div>
 
-        
+
+
+
 
         {/* Vitals */}
         <div className="mt-6 border-2 border-[#00B8DB] bg-white rounded-md overflow-hidden">

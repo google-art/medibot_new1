@@ -136,6 +136,10 @@ import FormData from "form-data";
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+router.get("/ping", (req, res) => {
+  res.json({ message: "MediBot working" });
+});
+
 /* ---------- n8n WEBHOOKS ---------- */
 const VOICE_WEBHOOK =
   "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/prodvoicebasedurl";
@@ -145,6 +149,12 @@ const SAVE_WEBHOOK =
 
 const PATIENT_ID_WEBHOOK =
   "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/patient_id";
+
+const SCHEDULE_WEBHOOK =
+  "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/Schedules_data";
+
+const GET_PATIENT_DETAILS_WEBHOOK =
+  "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/Get_patient_details";
 
 /* ---------- TEMP MEMORY DB ---------- */
 const patients = [];
@@ -291,4 +301,83 @@ router.get("/latest-booking", async (req, res) => {
     res.status(500).json({ error: "Failed" });
   }
 });
+
+/* =========================================================
+   📅 SAVE WEEK SCHEDULE → n8n
+========================================================= */
+router.post("/save-schedule", async (req, res) => {
+  try {
+    console.log("📅 /save-schedule route hit");
+
+    const scheduleData = {
+      ...req.body,
+      savedAt: new Date().toISOString(),
+    };
+
+    const response = await fetch(SCHEDULE_WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(scheduleData),
+    });
+
+    console.log("📡 n8n status:", response.status);
+
+    if (!response.ok) {
+      return res.status(500).json({
+        success: false,
+        message: "n8n webhook failed",
+      });
+    }
+
+    const data = await response.json();
+    console.log("📨 n8n response:", data);
+
+    return res.json({
+      success: true,
+      message: "Schedule saved successfully",
+    });
+
+  } catch (err) {
+    console.error("🔥 SAVE SCHEDULE ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "n8n not reachable",
+    });
+  }
+});
+/* =========================================================
+   🔍 GET PATIENT DETAILS BY ID → n8n
+========================================================= */
+router.post("/get-patient-details", async (req, res) => {
+  try {
+    const { patientId } = req.body;
+
+    if (!patientId) {
+      return res.status(400).json({ error: "Patient ID required" });
+    }
+
+    console.log("🔎 Fetching patient:", patientId);
+
+    const response = await fetch(GET_PATIENT_DETAILS_WEBHOOK, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ patientId }),
+    });
+
+    const data = await response.json();
+
+    console.log("📨 n8n patient data:", data);
+
+    // Send n8n response directly to frontend
+    res.json(data);
+
+  } catch (err) {
+    console.error("🔥 PATIENT FETCH ERROR:", err);
+    res.status(500).json({ error: "Failed to fetch patient details" });
+  }
+});
+
 export default router;

@@ -1858,6 +1858,14 @@ const toKey = (date) => {
   return `${y}-${m}-${d}`;
 };
 
+// 🔥 ADD THIS RIGHT BELOW
+const toDDMMYYYY = (date) => {
+  const y = date.getFullYear();
+  const m = pad2(date.getMonth() + 1);
+  const d = pad2(date.getDate());
+  return `${d}-${m}-${y}`;
+};
+
 const parseKey = (key) => {
   const [y, m, d] = key.split("-").map((x) => Number(x));
   return new Date(y, m - 1, d);
@@ -1999,15 +2007,13 @@ const Toggle = ({ checked, onChange }) => (
   <button
     type="button"
     onClick={() => onChange(!checked)}
-    className={`relative inline-flex h-6 w-11 items-center rounded-full border-2 border-black transition-colors ${
-      checked ? "bg-[#00B8DB]" : "bg-[#E5E7EB]"
-    }`}
+    className={`relative inline-flex h-6 w-11 items-center rounded-full border-2 border-black transition-colors ${checked ? "bg-[#00B8DB]" : "bg-[#E5E7EB]"
+      }`}
     aria-pressed={checked}
   >
     <span
-      className={`inline-block h-5 w-5 transform rounded-full bg-white border-2 border-black transition-transform ${
-        checked ? "translate-x-5" : "translate-x-0.5"
-      }`}
+      className={`inline-block h-5 w-5 transform rounded-full bg-white border-2 border-black transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"
+        }`}
     />
   </button>
 );
@@ -2108,111 +2114,132 @@ function SelectTime({ value, onChange, placeholder, options }) {
 /* ---------- main ---------- */
 
 export default function Appointment() {
-const today = new Date();
+  const today = new Date();
 
-const [monthCursor, setMonthCursor] = useState(
-  new Date(today.getFullYear(), today.getMonth(), 1)
-);
+  const [monthCursor, setMonthCursor] = useState(
+    new Date(today.getFullYear(), today.getMonth(), 1)
+  );
+  const [toast, setToast] = useState(null);
+  // toast = { type: "success" | "error", message: "text" }
+  useEffect(() => {
+    if (!toast) return;
 
-const [selectedKey, setSelectedKey] = useState(toKey(today));
+    const timer = setTimeout(() => {
+      setToast(null);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  useEffect(() => {
+    const today = new Date();
+    const monday = startOfWeekMonday(today);
+
+    setSelectedKey(toKey(monday));
+    setMonthCursor(new Date(monday.getFullYear(), monday.getMonth(), 1));
+  }, []);
+
+
+
+  const [selectedKey, setSelectedKey] = useState(toKey(today));
   const selectedDate = useMemo(() => parseKey(selectedKey), [selectedKey]);
 
   const [view, setView] = useState("slots");
   const [showManageSlots, setShowManageSlots] = useState(true);
 
   const [notifications, setNotifications] = useState(() => {
-  const saved = localStorage.getItem("notifications");
-  return saved ? JSON.parse(saved) : [];
-});
+    const saved = localStorage.getItem("notifications");
+    return saved ? JSON.parse(saved) : [];
+  });
 
-useEffect(() => {
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch("http://localhost:3001/api/medibot/latest-booking");
-      const data = await res.json();
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const res = await fetch("http://localhost:3001/api/medibot/latest-booking");
+        const data = await res.json();
 
-      const latest = data?.latest || data?.[0]?.latest;
-      if (!latest) return;
+        const latest = data?.latest || data?.[0]?.latest;
+        if (!latest) return;
 
-      // ✅ INSERT HERE
-      const parsedDate = new Date(latest.Date);
-      const formattedDate = toKey(parsedDate);
+        // ✅ INSERT HERE
+        const parsedDate = new Date(latest.Date);
+        const formattedDate = toKey(parsedDate);
 
-      const formattedTime =
-        latest.Time.length === 5
-          ? latest.Time
-          : new Date(`1970-01-01T${latest.Time}`)
+        const formattedTime =
+          latest.Time.length === 5
+            ? latest.Time
+            : new Date(`1970-01-01T${latest.Time}`)
               .toTimeString()
               .slice(0, 5);
 
         const formatted = {
-         id: latest["Book-id"],
-         patient: latest.Name || "Unknown",
-         pid: latest["patient id "] || latest["patient id"] || "N/A",
-         phone: latest.Phone || "N/A",
-         email: latest.email || "N/A",
-         date: formattedDate,   // ✅ FIXED
-         timeSlot: formattedTime,
-         via: "CHATBOT",
-         bookedAt: new Date().toLocaleString(),
-         read: false,
-      };
-      setNotifications((prev) => {
-        const exists = prev.some((n) => n.id === formatted.id);
-        if (exists) return prev;
+          id: latest["Book-id"],
+          patient: latest.Name || "Unknown",
+          pid: latest["patient id "] || latest["patient id"] || "N/A",
+          phone: latest.Phone || "N/A",
+          email: latest.email || "N/A",
+          date: formattedDate,   // ✅ FIXED
+          timeSlot: formattedTime,
+          via: "CHATBOT",
+          bookedAt: new Date().toLocaleString(),
+          read: false,
+        };
+        setNotifications((prev) => {
+          const exists = prev.some((n) => n.id === formatted.id);
+          if (exists) return prev;
 
-        const updated = [formatted, ...prev];
-        localStorage.setItem("notifications", JSON.stringify(updated));
-        return updated;
-      });
+          const updated = [formatted, ...prev];
+          localStorage.setItem("notifications", JSON.stringify(updated));
+          return updated;
+        });
 
-    } catch (err) {
-      console.error("Notification fetch failed", err);
-    }
-  };
+      } catch (err) {
+        console.error("Notification fetch failed", err);
+      }
+    };
 
-  fetchNotifications();
-  
-}, []);
+    fetchNotifications();
 
-const [hoursByDate, setHoursByDate] = useState(() => {
-  const saved = localStorage.getItem("hoursByDate");
-  if (saved) return JSON.parse(saved);
+  }, []);
 
-  return {}; // empty initially
-});
+  const [hoursByDate, setHoursByDate] = useState(() => {
+    const saved = localStorage.getItem("hoursByDate");
+    if (saved) return JSON.parse(saved);
 
-const [bookingsByDate, setBookingsByDate] = useState(() => {
-  const saved = localStorage.getItem("bookingsByDate");
-  if (saved) return JSON.parse(saved);
+    return {}; // empty initially
+  });
 
-  // fallback initial demo data
-  return {
-    "2026-02-05": {
-      "09:00": {
-        patient: "Rajesh Kumar",
-        pid: "P001",
-        phone: "+91 98765 43210",
-        email: "rajesh@example.com",
-        bookedAt: "2/5/2026, 10:12:17 AM",
-        via: "CHATBOT",
+  const [bookingsByDate, setBookingsByDate] = useState(() => {
+    const saved = localStorage.getItem("bookingsByDate");
+    if (saved) return JSON.parse(saved);
+
+    // fallback initial demo data
+    return {
+      "2026-02-05": {
+        "09:00": {
+          patient: "Rajesh Kumar",
+          pid: "P001",
+          phone: "+91 98765 43210",
+          email: "rajesh@example.com",
+          bookedAt: "2/5/2026, 10:12:17 AM",
+          via: "CHATBOT",
+        },
       },
-    },
-  };
-});
-useEffect(() => {
-  localStorage.setItem(
-    "bookingsByDate",
-    JSON.stringify(bookingsByDate)
-  );
-}, [bookingsByDate]);
+    };
+  });
+  useEffect(() => {
+    localStorage.setItem(
+      "bookingsByDate",
+      JSON.stringify(bookingsByDate)
+    );
+  }, [bookingsByDate]);
 
-useEffect(() => {
-  localStorage.setItem(
-    "hoursByDate",
-    JSON.stringify(hoursByDate)
-  );
-}, [hoursByDate]);
+  useEffect(() => {
+    localStorage.setItem(
+      "hoursByDate",
+      JSON.stringify(hoursByDate)
+    );
+  }, [hoursByDate]);
 
   const TIME_OPTIONS = useMemo(() => {
     const opts = [];
@@ -2278,17 +2305,70 @@ useEffect(() => {
       return { ...p, [day]: { ...p[day], ranges: left.length ? left : [{ start: "", end: "" }] } };
     });
 
-  const applyWeekToDates = () => {
-    setHoursByDate((prev) => {
-      const next = { ...prev };
-      for (let i = 0; i < 7; i++) {
-        const key = toKey(weekDates[i]);
-        const name = dayNames[i];
-        next[key] = { open: !!weekHours[name].open, ranges: weekHours[name].ranges.map((r) => ({ ...r })) };
-      }
-      return next;
-    });
-    setSelectedKey(toKey(weekDates[0]));
+  const applyWeekToDates = async () => {
+    try {
+      setHoursByDate((prev) => {
+        const next = { ...prev };
+        for (let i = 0; i < 7; i++) {
+          const key = toKey(weekDates[i]);
+          const name = dayNames[i];
+          next[key] = {
+            open: !!weekHours[name].open,
+            ranges: weekHours[name].ranges.map((r) => ({ ...r })),
+          };
+        }
+        return next;
+      });
+
+      setSelectedKey(toKey(weekDates[0]));
+
+      const payload = {
+        weekStart: toDDMMYYYY(weekDates[0]),
+        weekEnd: toDDMMYYYY(weekDates[6]),
+        schedule: weekDates.map((date, i) => {
+          const name = dayNames[i];
+          const dayConfig = weekHours[name];
+
+          return {
+            date: toDDMMYYYY(date),
+            day: name,
+            open: dayConfig.open,
+            ranges: dayConfig.ranges,
+            slots: dayConfig.open
+              ? buildSlotsFromRanges(dayConfig.ranges)
+              : [],
+          };
+        }),
+      };
+
+      const response = await fetch(
+        "http://localhost:3001/api/medibot/save-schedule",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) throw new Error("Backend error");
+
+      const data = await response.json();
+
+      if (!data?.success) throw new Error("n8n webhook failed");
+
+      setToast({
+        type: "success",
+        message: "Week schedule saved successfully!",
+      });
+
+    } catch (error) {
+      console.error("❌ Webhook error:", error);
+
+      setToast({
+        type: "error",
+        message: "n8n webhook not responding!",
+      });
+    }
   };
 
   const dayHours = useMemo(
@@ -2385,97 +2465,97 @@ useEffect(() => {
       .sort((a, b2) => t24ToMinutes(a.t) - t24ToMinutes(b2.t));
   }, [bookingsByDate, selectedKey]);
 
-const markNotificationRead = (id) => {
-  setNotifications((prev) => {
-    const notification = prev.find((n) => n.id === id);
-    if (!notification) return prev;
+  const markNotificationRead = (id) => {
+    setNotifications((prev) => {
+      const notification = prev.find((n) => n.id === id);
+      if (!notification) return prev;
 
-    // 🔥 1️⃣ Normalize DATE
-    const parsedDate = new Date(notification.date);
-    const dateKey = toKey(parsedDate); // YYYY-MM-DD
+      // 🔥 1️⃣ Normalize DATE
+      const parsedDate = new Date(notification.date);
+      const dateKey = toKey(parsedDate); // YYYY-MM-DD
 
-    // 🔥 2️⃣ Normalize TIME (force 24hr HH:mm)
-    let timeSlot = notification.timeSlot;
-    if (timeSlot.length > 5) {
-      timeSlot = new Date(`1970-01-01T${timeSlot}`)
-        .toTimeString()
-        .slice(0, 5);
-    }
-
-    // 🔥 3️⃣ Switch UI to that exact date
-    setSelectedKey(dateKey);
-
-    // 🔥 4️⃣ Ensure slot exists in hours range
-    setHoursByDate((prevHours) => {
-      const existing = prevHours[dateKey];
-      const slotEnd = minutesToT24(t24ToMinutes(timeSlot) + 15);
-
-      if (!existing) {
-        return {
-          ...prevHours,
-          [dateKey]: {
-            open: true,
-            ranges: [{ start: timeSlot, end: slotEnd }],
-          },
-        };
+      // 🔥 2️⃣ Normalize TIME (force 24hr HH:mm)
+      let timeSlot = notification.timeSlot;
+      if (timeSlot.length > 5) {
+        timeSlot = new Date(`1970-01-01T${timeSlot}`)
+          .toTimeString()
+          .slice(0, 5);
       }
 
-      const slotMin = t24ToMinutes(timeSlot);
+      // 🔥 3️⃣ Switch UI to that exact date
+      setSelectedKey(dateKey);
 
-      const inside = existing.ranges.some((r) => {
-        const startMin = t24ToMinutes(r.start);
-        const endMin = t24ToMinutes(r.end);
-        return slotMin >= startMin && slotMin < endMin;
+      // 🔥 4️⃣ Ensure slot exists in hours range
+      setHoursByDate((prevHours) => {
+        const existing = prevHours[dateKey];
+        const slotEnd = minutesToT24(t24ToMinutes(timeSlot) + 15);
+
+        if (!existing) {
+          return {
+            ...prevHours,
+            [dateKey]: {
+              open: true,
+              ranges: [{ start: timeSlot, end: slotEnd }],
+            },
+          };
+        }
+
+        const slotMin = t24ToMinutes(timeSlot);
+
+        const inside = existing.ranges.some((r) => {
+          const startMin = t24ToMinutes(r.start);
+          const endMin = t24ToMinutes(r.end);
+          return slotMin >= startMin && slotMin < endMin;
+        });
+
+        if (!inside) {
+          return {
+            ...prevHours,
+            [dateKey]: {
+              ...existing,
+              open: true,
+              ranges: [
+                ...existing.ranges,
+                { start: timeSlot, end: slotEnd },
+              ],
+            },
+          };
+        }
+
+        return prevHours;
       });
 
-      if (!inside) {
+      // 🔥 5️⃣ Insert booking EXACTLY at that time
+      setBookingsByDate((prevBookings) => {
+        const dayBookings = prevBookings[dateKey] || {};
+
+        if (dayBookings[timeSlot]) {
+          return prevBookings; // prevent duplicate
+        }
+
         return {
-          ...prevHours,
+          ...prevBookings,
           [dateKey]: {
-            ...existing,
-            open: true,
-            ranges: [
-              ...existing.ranges,
-              { start: timeSlot, end: slotEnd },
-            ],
+            ...dayBookings,
+            [timeSlot]: {
+              patient: notification.patient,
+              pid: notification.pid,
+              phone: notification.phone,
+              email: notification.email,
+              bookedAt: notification.bookedAt,
+              via: notification.via || "CHATBOT",
+            },
           },
         };
-      }
+      });
 
-      return prevHours;
+      // 🔥 6️⃣ Remove notification
+      const updated = prev.filter((n) => n.id !== id);
+      localStorage.setItem("notifications", JSON.stringify(updated));
+
+      return updated;
     });
-
-    // 🔥 5️⃣ Insert booking EXACTLY at that time
-    setBookingsByDate((prevBookings) => {
-      const dayBookings = prevBookings[dateKey] || {};
-
-      if (dayBookings[timeSlot]) {
-        return prevBookings; // prevent duplicate
-      }
-
-      return {
-        ...prevBookings,
-        [dateKey]: {
-          ...dayBookings,
-          [timeSlot]: {
-            patient: notification.patient,
-            pid: notification.pid,
-            phone: notification.phone,
-            email: notification.email,
-            bookedAt: notification.bookedAt,
-            via: notification.via || "CHATBOT",
-          },
-        },
-      };
-    });
-
-    // 🔥 6️⃣ Remove notification
-    const updated = prev.filter((n) => n.id !== id);
-    localStorage.setItem("notifications", JSON.stringify(updated));
-
-    return updated;
-  });
-};
+  };
 
   const navMonth = (dir) => setMonthCursor((p) => new Date(p.getFullYear(), p.getMonth() + dir, 1));
 
@@ -2495,14 +2575,64 @@ const markNotificationRead = (id) => {
   const isSelected = (key) => key === selectedKey;
 
   return (
-    <div className="min-h-screen font-sans" style={{ backgroundColor: PAGE_BG, fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" }}>
+    <div
+      className="min-h-screen font-sans"
+      style={{
+        backgroundColor: PAGE_BG,
+        fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial"
+      }}
+    >
+      {toast && (
+        <div className="fixed top-6 right-6 z-50">
+          <div
+            className={`
+        min-w-[260px]
+        px-6 py-3 rounded-md border-2 font-semibold text-sm shadow-xl
+        transition-all duration-300 ease-out
+        animate-toastSlide
+        ${toast.type === "success"
+                ? "bg-[#EFFFF5] border-[#00C950] text-black"
+                : "bg-[#FFEAEA] border-[#FF4D4D] text-black"
+              }
+      `}
+          >
+            {toast.message}
+          </div>
+        </div>
+      )}
+
+      {/* ✅ TOAST HERE */}
       <main className="mx-auto max-w-[1100px] px-6 py-7">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-black tracking-tight">APPOINTMENTS</h1>
-            <p className="text-sm text-black/55 mt-1">Manage your appointment slots and bookings</p>
+            <h1 className="text-3xl font-extrabold text-black tracking-tight">
+              APPOINTMENTS
+            </h1>
+            <p className="text-sm text-black/55 mt-1">
+              Manage your appointment slots and bookings
+            </p>
           </div>
-          <TopToggle />
+
+          {/* RIGHT SIDE (Toggle + Toast) */}
+          <div className="flex flex-col items-end gap-2">
+            <TopToggle />
+
+            {toast && (
+              <div
+                className={`
+      px-5 py-2 border-2 rounded-md font-extrabold text-xs shadow-md
+      transform transition-all duration-500 ease-out
+      animate-slideDown
+      ${toast.type === "success"
+                    ? "bg-[#EFFFF5] border-[#00C950]"
+                    : "bg-[#FFEAEA] border-[#FF4D4D]"
+                  }
+    `}
+              >
+                {toast.message}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2512,49 +2642,48 @@ const markNotificationRead = (id) => {
         </div>
 
         {/* Notifications */}
-<div className="mt-6 border-2 border-black bg-white rounded-md">
-  <div className="p-4 border-b border-black/10 flex items-center justify-between">
-    <SectionTitle icon={<FiBell />} title="NEW NOTIFICATIONS" />
-  </div>
-
-  <div className="p-4 space-y-3">
-    {notifications.length === 0 ? (
-      <div className="text-sm text-black/60">
-        No notifications.
-      </div>
-    ) : (
-      notifications.map((n) => (
-        <div
-          key={n.id}
-          className="border-2 border-black rounded-sm p-4 flex items-center justify-between"
-        >
-          {/* LEFT SIDE */}
-          <div className="flex flex-col">
-            <div className="text-sm font-semibold text-black">
-              {n.patient} – New appointment booked
-            </div>
-
-            <div className="text-xs text-black/50 mt-1">
-              {n.date} • {timeLabel(n.timeSlot)}
-            </div>
+        <div className="mt-6 border-2 border-black bg-white rounded-md">
+          <div className="p-4 border-b border-black/10 flex items-center justify-between">
+            <SectionTitle icon={<FiBell />} title="NEW NOTIFICATIONS" />
           </div>
 
-          {/* RIGHT SIDE BUTTON */}
-          <button
-            onClick={() => markNotificationRead(n.id)}
-            className={`h-9 w-10 border-2 border-black rounded-sm inline-flex items-center justify-center ${
-              n.read ? "bg-[#B9F6CC]" : "bg-[#00B8DB]"
-            }`}
-            title={n.read ? "Read" : "Mark as read"}
-          >
-            <FiCheck className="text-black" />
-          </button>
+          <div className="p-4 space-y-3">
+            {notifications.length === 0 ? (
+              <div className="text-sm text-black/60">
+                No notifications.
+              </div>
+            ) : (
+              notifications.map((n) => (
+                <div
+                  key={n.id}
+                  className="border-2 border-black rounded-sm p-4 flex items-center justify-between"
+                >
+                  {/* LEFT SIDE */}
+                  <div className="flex flex-col">
+                    <div className="text-sm font-semibold text-black">
+                      {n.patient} – New appointment booked
+                    </div>
+
+                    <div className="text-xs text-black/50 mt-1">
+                      {n.date} • {timeLabel(n.timeSlot)}
+                    </div>
+                  </div>
+
+                  {/* RIGHT SIDE BUTTON */}
+                  <button
+                    onClick={() => markNotificationRead(n.id)}
+                    className={`h-9 w-10 border-2 border-black rounded-sm inline-flex items-center justify-center ${n.read ? "bg-[#B9F6CC]" : "bg-[#00B8DB]"
+                      }`}
+                    title={n.read ? "Read" : "Mark as read"}
+                  >
+                    <FiCheck className="text-black" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
-      ))
-    )}
-  </div>
-</div>
-          
+
 
         {view === "slots" ? (
           <>
@@ -2724,8 +2853,8 @@ const markNotificationRead = (id) => {
                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
                       {hasBookings
                         ? Array.from({ length: Math.min(3, cell.booked) }).map((_, i) => (
-                            <span key={i} className="h-1.5 w-1.5 rounded-full" style={{ background: selected ? "black" : CYAN }} />
-                          ))
+                          <span key={i} className="h-1.5 w-1.5 rounded-full" style={{ background: selected ? "black" : CYAN }} />
+                        ))
                         : null}
                     </div>
                   </button>
@@ -2747,7 +2876,7 @@ const markNotificationRead = (id) => {
                   <div className="border-2 border-black bg-white rounded-md p-6 text-sm text-black/60">No appointments booked for this date.</div>
                 ) : (
                   selectedDayBookings.map(({ t, booking }) => (
-                    <BookedCard key={t} timeT24={t} timeLabelText={timeLabel(t)} booking={booking} isEditing={false} onStartEdit={() => {}} onCancelEdit={() => {}} onChangeEditTime={() => {}} onSaveEdit={() => {}} timeOptions={[]} hideEdit />
+                    <BookedCard key={t} timeT24={t} timeLabelText={timeLabel(t)} booking={booking} isEditing={false} onStartEdit={() => { }} onCancelEdit={() => { }} onChangeEditTime={() => { }} onSaveEdit={() => { }} timeOptions={[]} hideEdit />
                   ))
                 )}
               </div>
@@ -2870,3 +2999,4 @@ function BookedCard({
     </div>
   );
 }
+
