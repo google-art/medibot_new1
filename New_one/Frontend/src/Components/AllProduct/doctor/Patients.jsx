@@ -544,7 +544,7 @@ const PatientCard = ({ p, onNewConsult, onOpenReport }) => {
             </div>
           </div>
 
-          
+
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
@@ -593,9 +593,9 @@ function HistoryItem({ item }) {
       </div>
 
       <div className="mt-4 space-y-3">
-        <ReportBlock title="CHIEF COMPLAINT" value={item.chiefComplaint} />
-        <ReportBlock title="DIAGNOSIS" value={item.diagnosis} />
-        <ReportBlock title="PRESCRIPTION" value={item.prescription} />
+        <ReportBlock title="MEDICATION" value={item.medication} />
+        <ReportBlock title="SYMPTOMS" value={item.symptoms} />
+        <ReportBlock title="DOCTOR NOTES" value={item.doctorNotes} />
       </div>
     </div>
   );
@@ -634,12 +634,13 @@ export default function Patients() {
 
   const [patients, setPatients] = useState([]);
   const [loadingPatients, setLoadingPatients] = useState(false);
+  const [allReports, setAllReports] = useState([]);
 
   // ===============================
   // AUTO FETCH REPORTS ON PAGE LOAD
   // ===============================
 
-   // ✅ FETCH FUNCTION HERE (ONLY ONE)
+  // ✅ FETCH FUNCTION HERE (ONLY ONE)
   const fetchPatients = async () => {
     try {
       setLoadingPatients(true);
@@ -662,7 +663,7 @@ export default function Patients() {
         phone: item["phone_number "]?.toString() || "",
         email: item["email_id "] || "",
         location: item.location,
-        
+
       }));
 
       setPatients(formattedPatients);
@@ -677,15 +678,85 @@ export default function Patients() {
 
   // ✅ useEffect MUST COME AFTER fetch function
   useEffect(() => {
-    fetchPatients();
+    const loadData = async () => {
+      await fetchPatients();
+      await fetchReports(); // 🔥 fetch ALL reports
+    };
+
+    loadData();
+
+    const interval = setInterval(() => {
+      loadData();
+    }, 5 * 60 * 1000); // every 5 minutes
+
+    return () => clearInterval(interval);
   }, []);
 
-const stats = {
-  totalPatients: patients.length,
-  todaysConsults: 0,
-  reportsGenerated: reportHistory.length,
-  avgWait: 0,
-};
+  // ===============================
+  // FETCH REPORTS FOR SELECTED PATIENT
+  // ===============================
+  const fetchReports = async (patientId = null) => {
+    try {
+      setLoadingReport(true);
+
+      const response = await fetch(
+        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/Patient_Report_patient_report",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            patientId ? { patientId } : { type: "allReports" }
+          ),
+        }
+      );
+
+      const data = await response.json();
+
+      // 🔥 store ALL reports for stats
+      if (!patientId) {
+        setAllReports(data || []);
+      }
+
+      // existing selected patient logic
+      const formattedReports = data.map((item, index) => ({
+        reportId: `R${index + 1}`,
+        patientId: item.Patient_id,
+        type: "report",
+        title: "Medical Report",
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString(),
+        vitals: {
+          height: item.Height ? `${item.Height} cm` : "-",
+          weight: item.Wieght ? `${item.Wieght} kg` : "-",
+          bp: item.Blood_pressure ? `${item.Blood_pressure}` : "-",
+        },
+        medication: item.Meditation || "-",
+        symptoms: item.Symptoms || "-",
+        doctorNotes: item["Doctor Notes"] || "-",
+      }));
+
+      setReportHistory(formattedReports);
+
+    } catch (err) {
+      console.error("❌ Failed to fetch reports:", err);
+      setReportHistory([]);
+      setAllReports([]);
+    } finally {
+      setLoadingReport(false);
+    }
+  };
+  const stats = {
+    totalPatients: patients.length,
+    todaysConsults: 0,
+    reportsGenerated: allReports.length, // ✅ FIXED
+    avgWait: 0,
+  };
+  useEffect(() => {
+    localStorage.setItem(
+      "totalReportsGenerated",
+      reportHistory.length
+    );
+  }, [reportHistory]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return patients;
@@ -700,8 +771,8 @@ const stats = {
   const openHistory = (p) => {
     setSelectedPatient(p);
     setShowReports(true);
+    fetchReports(p.id);   // 🔥 CALL WEBHOOK HERE
   };
-
   // ✅ FIXED: go to doctor module capture
   const goNewPatient = () => navigate(`${DOCTOR_BASE}/capture`);
 
@@ -718,17 +789,17 @@ const stats = {
   // ===============================
   const downloadAllReportsExcel = () => {
     const allReports = reportHistory.map((r) => ({
-  "Report ID": r.reportId,
-  "Patient ID": r.patientId,
-  "Date": r.date,
-  "Time": r.time,
-  "Height": r.vitals?.height,
-  "Weight": r.vitals?.weight,
-  "Blood Pressure": r.vitals?.bp,
-  "Chief Complaint": r.chiefComplaint,
-  "Diagnosis": r.diagnosis,
-  "Prescription": r.prescription,
-}));
+      "Report ID": r.reportId,
+      "Patient ID": r.patientId,
+      "Date": r.date,
+      "Time": r.time,
+      "Height": r.vitals?.height,
+      "Weight": r.vitals?.weight,
+      "Blood Pressure": r.vitals?.bp,
+      "Medication": r.medication,
+      "Symptoms": r.symptoms,
+      "Doctor Notes": r.doctorNotes,
+    }));
 
     if (allReports.length === 0) {
       alert("No reports available to download.");
@@ -769,7 +840,7 @@ const stats = {
       "Phone Number": p.phone,
       Email: p.email,
       Location: p.location,
-      
+
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
@@ -797,8 +868,8 @@ const stats = {
     if (!selectedPatient) return;
 
     const reports = reportHistory.filter(
-  r => r.patientId === selectedPatient.id
-);
+      r => r.patientId === selectedPatient.id
+    );
 
     if (reports.length === 0) {
       alert("No reports available to download.");
@@ -814,9 +885,9 @@ const stats = {
       "Height",
       "Weight",
       "Blood Pressure",
-      "Chief Complaint",
-      "Diagnosis",
-      "Prescription",
+      "Medication",
+      "Symptoms",
+      "Doctor Notes",
     ];
 
     const rows = reports.map((r) => [
@@ -828,11 +899,10 @@ const stats = {
       r.vitals.height,
       r.vitals.weight,
       r.vitals.bp,
-      r.chiefComplaint,
-      r.diagnosis,
-      r.prescription,
+      r.medication,
+      r.symptoms,
+      r.doctorNotes,
     ]);
-
     const csvContent =
       [headers, ...rows]
         .map((row) => row.map((item) => `"${item}"`).join(","))
@@ -968,61 +1038,61 @@ const stats = {
       </main>
 
       <Modal
-  open={showReports}
-  title="MEDICAL REPORTS"
-  onClose={() => setShowReports(false)}
-  widthClass="max-w-[980px]"
->
-  {selectedPatient ? (
-    <>
-      <div className="text-sm text-black/70 mb-3">
-        <span className="font-extrabold text-black">Reports for</span>{" "}
-        <span className="font-extrabold">{selectedPatient.name}</span>{" "}
-        <span className="text-black/50">({selectedPatient.id})</span>
-      </div>
+        open={showReports}
+        title="MEDICAL REPORTS"
+        onClose={() => setShowReports(false)}
+        widthClass="max-w-[980px]"
+      >
+        {selectedPatient ? (
+          <>
+            <div className="text-sm text-black/70 mb-3">
+              <span className="font-extrabold text-black">Reports for</span>{" "}
+              <span className="font-extrabold">{selectedPatient.name}</span>{" "}
+              <span className="text-black/50">({selectedPatient.id})</span>
+            </div>
 
-      <div className="space-y-4">
-        {loadingReport ? (
-          <div className="text-sm text-black/60">
-            Loading reports...
-          </div>
-        ) : reportHistory.length === 0 ? (
-          <div className="border-2 border-black bg-white rounded-md p-6 text-sm text-black/60">
-            No report history found.
-          </div>
+            <div className="space-y-4">
+              {loadingReport ? (
+                <div className="text-sm text-black/60">
+                  Loading reports...
+                </div>
+              ) : reportHistory.length === 0 ? (
+                <div className="border-2 border-black bg-white rounded-md p-6 text-sm text-black/60">
+                  No report history found.
+                </div>
+              ) : (
+                reportHistory
+                  .filter(r => r.patientId === selectedPatient.id)
+                  .map((item, index) => (
+                    <HistoryItem key={index} item={item} />
+                  ))
+              )}
+            </div>
+
+            <div className="mt-4 flex justify-between">
+              <button
+                type="button"
+                onClick={downloadReportsForSelectedPatient}
+                className="h-9 px-4 border-2 border-black rounded-sm bg-[#00B8DB] font-extrabold text-xs uppercase"
+              >
+                DOWNLOAD CSV
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowReports(false)}
+                className="h-9 px-4 border-2 border-black rounded-sm bg-white font-extrabold text-xs uppercase"
+              >
+                BACK
+              </button>
+            </div>
+          </>
         ) : (
-          reportHistory
-  .filter(r => r.patientId === selectedPatient.id)
-  .map((item, index) => (
-            <HistoryItem key={index} item={item} />
-          ))
+          <div className="text-sm text-black/60">
+            Select a patient to view history.
+          </div>
         )}
-      </div>
-
-      <div className="mt-4 flex justify-between">
-        <button
-          type="button"
-          onClick={downloadReportsForSelectedPatient}
-          className="h-9 px-4 border-2 border-black rounded-sm bg-[#00B8DB] font-extrabold text-xs uppercase"
-        >
-          DOWNLOAD CSV
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setShowReports(false)}
-          className="h-9 px-4 border-2 border-black rounded-sm bg-white font-extrabold text-xs uppercase"
-        >
-          BACK
-        </button>
-      </div>
-    </>
-  ) : (
-    <div className="text-sm text-black/60">
-      Select a patient to view history.
-    </div>
-  )}
-</Modal>
+      </Modal>
     </div >
   );
 }

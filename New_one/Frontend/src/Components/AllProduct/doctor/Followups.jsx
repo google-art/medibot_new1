@@ -655,14 +655,26 @@ export default function Followups() {
   const [target, setTarget] = useState(null);
   const [newDate, setNewDate] = useState("");
 
-  const stats = useMemo(() => {
-    return {
-      total: items.length,
-      upcoming: items.filter((i) => i.status === "UPCOMING").length,
-      dueToday: items.filter((i) => i.status === "DUE TODAY").length,
-      overdue: items.filter((i) => i.status === "OVERDUE").length,
-    };
-  }, [items]);
+const stats = useMemo(() => {
+  const total = items.length;
+  const upcoming = items.filter((i) => i.status === "UPCOMING").length;
+  const dueToday = items.filter((i) => i.status === "DUE TODAY").length;
+  const overdue = items.filter((i) => i.status === "OVERDUE").length;
+
+  const remindersSent = items.filter((i) => i.sent).length;
+
+  const completionRate =
+    total > 0 ? Math.round((remindersSent / total) * 100) : 0;
+
+  return {
+    total,
+    upcoming,
+    dueToday,
+    overdue,
+    remindersSent,
+    completionRate,
+  };
+}, [items]);
 
   const sendWhatsApp = (row) => {
     const msg = `Hello ${row.name}, this is a reminder for your follow-up.\n\nReason: ${row.reason}\nFollow-up Due: ${row.dueDate}\n\nThank you.`;
@@ -759,14 +771,14 @@ export default function Followups() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <SmallStat
               title="COMPLETION RATE"
-              value="87%"
+              value={`${stats.completionRate}%`}
               subtitle="Patients attend follow-ups"
               border="border-[#00B8DB]"
               icon={<FiCheckCircle />}
             />
             <SmallStat
               title="REMINDERS SENT"
-              value="142"
+              value={stats.remindersSent}
               subtitle="This month"
               border="border-black"
               icon={<FiSend />}

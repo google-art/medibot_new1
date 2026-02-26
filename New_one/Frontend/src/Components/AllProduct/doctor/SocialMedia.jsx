@@ -229,21 +229,35 @@ export default function SocialMedia() {
   };
 
   // ✅ generic POST JSON with better error logging
-  const postJson = async (url, payload) => {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      // If your n8n requires cookies/session, uncomment:
-      // credentials: "include",
-      body: JSON.stringify(payload),
-    });
+const postWithFiles = async (url, payload) => {
+  const formData = new FormData();
 
-    const text = await res.text().catch(() => "");
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status} ${res.statusText} - ${text}`);
+  // Append normal fields
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      formData.append(key, typeof value === "object"
+        ? JSON.stringify(value)
+        : value
+      );
     }
-    return text;
-  };
+  });
+
+  // Append files as binary
+  uploadedMedia.forEach((media, index) => {
+    formData.append("files", media.file); // IMPORTANT
+  });
+
+  const res = await fetch(url, {
+    method: "POST",
+    body: formData, // NO headers here!
+  });
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  return await res.text();
+};
 
   // ✅ GENERATE webhook (per postType)
   const sendGenerateWebhook = async (postContent) => {
@@ -267,7 +281,7 @@ export default function SocialMedia() {
         timestamp: new Date().toISOString(),
       };
 
-      await postJson(generate, payload);
+      await postWithFiles(generate, payload);
       console.log("✅ Generate webhook sent:", postType);
     } catch (err) {
       console.error("❌ Generate webhook error:", err);
@@ -302,7 +316,7 @@ export default function SocialMedia() {
 
     // Important: if this fails with "Failed to fetch", it's almost always CORS/network.
     // Use proxy/backend if needed.
-    return await postJson(action, payload);
+    return await postWithFiles(action, payload);
   };
 
   const buildPost = () => {

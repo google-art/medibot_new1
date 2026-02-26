@@ -2131,13 +2131,7 @@ export default function Appointment() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  useEffect(() => {
-    const today = new Date();
-    const monday = startOfWeekMonday(today);
 
-    setSelectedKey(toKey(monday));
-    setMonthCursor(new Date(monday.getFullYear(), monday.getMonth(), 1));
-  }, []);
 
 
 
@@ -2320,8 +2314,8 @@ export default function Appointment() {
         return next;
       });
 
-      setSelectedKey(toKey(weekDates[0]));
-
+      // ✅ Return to TODAY instead of Monday
+      setSelectedKey(toKey(new Date()));
       const payload = {
         weekStart: toDDMMYYYY(weekDates[0]),
         weekEnd: toDDMMYYYY(weekDates[6]),
