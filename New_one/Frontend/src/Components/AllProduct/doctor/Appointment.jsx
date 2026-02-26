@@ -2611,21 +2611,7 @@ export default function Appointment() {
           <div className="flex flex-col items-end gap-2">
             <TopToggle />
 
-            {toast && (
-              <div
-                className={`
-      px-5 py-2 border-2 rounded-md font-extrabold text-xs shadow-md
-      transform transition-all duration-500 ease-out
-      animate-slideDown
-      ${toast.type === "success"
-                    ? "bg-[#EFFFF5] border-[#00C950]"
-                    : "bg-[#FFEAEA] border-[#FF4D4D]"
-                  }
-    `}
-              >
-                {toast.message}
-              </div>
-            )}
+            
           </div>
         </div>
 

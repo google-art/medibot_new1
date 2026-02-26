@@ -590,6 +590,19 @@ const sanitizeFee = (v) => {
   return Math.max(0, Math.min(999999, Math.floor(num)));
 };
 
+const getCurrencySymbol = (currency) => {
+  switch (currency) {
+    case "US Dollar (USD)":
+      return "$";
+    case "Euro (EUR)":
+      return "€";
+    case "UAE Dirham (AED)":
+      return "د.إ";
+    default:
+      return "₹";
+  }
+};
+
 const PAYMENT_METHODS = ["Cash", "UPI", "Card", "Net Banking", "Paytm", "PhonePe"];
 
 const STORE_URL = "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/billing-summary/store";
@@ -618,18 +631,19 @@ const StatCard = ({ title, value, subtitle, border, iconBg, icon: Icon }) => {
   );
 };
 
-const InfoBanner = () => {
+const InfoBanner = ({ currencySymbol, defaultFee }) => {
   return (
     <div className="border-2 border-[#00B8DB] bg-white rounded-md p-4 flex items-start gap-3">
       <div className="h-10 w-10 bg-[#00B8DB] border-2 border-black rounded-md flex items-center justify-center">
-        <FaRupeeSign className="text-black text-lg" />
+        <span className="font-extrabold text-black">{currencySymbol}</span>
       </div>
       <div className="flex-1">
         <div className="font-extrabold text-sm text-black uppercase">
           Default Consultation Fee
         </div>
         <div className="text-xs text-black/60 mt-1">
-          All new consultations default to ₹200. You can edit individual fees as needed.
+          All new consultations default to {currencySymbol}{formatINR(defaultFee)}.
+          You can edit individual fees as needed.
         </div>
       </div>
     </div>
@@ -690,13 +704,13 @@ const Badge = ({ kind }) => {
   );
 };
 
-const SummaryCard = ({ title, value, subtitle, border, icon }) => {
+const SummaryCard = ({ title, value, subtitle, border, icon, currencySymbol }) => {
   return (
     <div className={`border-2 ${border} bg-white rounded-md p-4`}>
       <div className="flex items-start justify-between">
         <div>
           <div className="text-[10px] font-extrabold text-black/60 uppercase">{title}</div>
-          <div className="mt-2 text-2xl font-extrabold text-black">₹{formatINR(value)}</div>
+          <div className="mt-2 text-2xl font-extrabold text-black">{currencySymbol}{formatINR(value)}</div>
           <div className="text-xs text-black/60 mt-1">{subtitle}</div>
         </div>
         <div className="text-xl">{icon}</div>
@@ -729,6 +743,7 @@ const Modal = ({ open, title, children, onClose, widthClass = "max-w-[520px]" })
 
 const RecordCard = ({
   r,
+  currencySymbol,   // ✅ ADD HERE
   isEditing,
   draftFee,
   onStartEdit,
@@ -803,7 +818,7 @@ const RecordCard = ({
             {!isEditing ? (
               <>
                 <div className="text-2xl font-extrabold text-black">
-                  ₹{formatINR(r.fee)}
+                  {currencySymbol}{formatINR(r.fee)}
                 </div>
 
                 <button
@@ -822,7 +837,7 @@ const RecordCard = ({
             ) : (
               <>
                 <div className="inline-flex items-center gap-2 justify-end">
-                  <span className="text-2xl font-extrabold text-black">₹</span>
+                  <span className="text-2xl font-extrabold text-black">{currencySymbol}</span>
                   <input
                     autoFocus
                     inputMode="numeric"
@@ -896,6 +911,22 @@ const Billing = () => {
     { id: "P005", name: "Vikram Singh", date: "1/31/2026", time: "03:52 PM", status: "paid", fee: 200, note: "Paid on 2/1/2026 via Cash" },
   ]);
 
+  const [appBillingSettings, setAppBillingSettings] = useState({
+    defaultFee: 200,
+    currency: "Indian Rupee (INR)",
+  });
+
+  useEffect(() => {
+    const saved = localStorage.getItem("billingSettings");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      setAppBillingSettings({
+        defaultFee: Number(parsed.defaultFee) || 200,
+        currency: parsed.currency || "Indian Rupee (INR)",
+      });
+    }
+  }, []);
+
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all"); // all | pending | paid | overdue
   const [revenueFilter, setRevenueFilter] = useState("all");
@@ -908,6 +939,7 @@ const Billing = () => {
   const [markPaidOpen, setMarkPaidOpen] = useState(false);
   const [markPaidTarget, setMarkPaidTarget] = useState(null);
   const [markPaidMethod, setMarkPaidMethod] = useState("");
+  const currencySymbol = getCurrencySymbol(appBillingSettings.currency);
 
   const fetchBillingSummary = async () => {
     try {
@@ -1010,44 +1042,44 @@ const Billing = () => {
       paidCount: filteredRecords.filter((r) => r.status === "paid").length,
       pendingCount: filteredRecords.filter((r) => r.status === "pending").length,
       overdueCount: filteredRecords.filter((r) => r.status === "overdue").length,
-      defaultFee: 200,
+      defaultFee: appBillingSettings.defaultFee,
     };
-  }, [records, revenueFilter]);
+  }, [records, revenueFilter, appBillingSettings]);
 
-// ✅ Monthly summary for Dashboard only
-useEffect(() => {
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1; // 1–12
-  const currentYear = now.getFullYear();
+  // ✅ Monthly summary for Dashboard only
+  useEffect(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1; // 1–12
+    const currentYear = now.getFullYear();
 
-  const monthlyRecords = records.filter((r) => {
-    if (!r.date) return false;
+    const monthlyRecords = records.filter((r) => {
+      if (!r.date) return false;
 
-    const parts = r.date.split("/"); // format: M/D/YYYY
-    if (parts.length !== 3) return false;
+      const parts = r.date.split("/"); // format: M/D/YYYY
+      if (parts.length !== 3) return false;
 
-    const month = Number(parts[0]);
-    const year = Number(parts[2]);
+      const month = Number(parts[0]);
+      const year = Number(parts[2]);
 
-    return month === currentMonth && year === currentYear;
-  });
+      return month === currentMonth && year === currentYear;
+    });
 
-  const monthlyPending = monthlyRecords
-    .filter((r) => r.status === "pending")
-    .reduce((sum, r) => sum + (r.fee || 0), 0);
+    const monthlyPending = monthlyRecords
+      .filter((r) => r.status === "pending")
+      .reduce((sum, r) => sum + (r.fee || 0), 0);
 
-  const monthlyPendingCount = monthlyRecords.filter(
-    (r) => r.status === "pending"
-  ).length;
+    const monthlyPendingCount = monthlyRecords.filter(
+      (r) => r.status === "pending"
+    ).length;
 
-  localStorage.setItem(
-    "billingSummary",
-    JSON.stringify({
-      pendingAmount: monthlyPending,
-      pendingCount: monthlyPendingCount,
-    })
-  );
-}, [records]);
+    localStorage.setItem(
+      "billingSummary",
+      JSON.stringify({
+        pendingAmount: monthlyPending,
+        pendingCount: monthlyPendingCount,
+      })
+    );
+  }, [records]);
 
   useEffect(() => {
     fetchBillingSummary();   // GET from sheet
@@ -1174,7 +1206,7 @@ useEffect(() => {
   const stats = [
     {
       title: "TOTAL REVENUE",
-      value: `₹${formatINR(totals.paid)}`,
+      value: `${currencySymbol}${formatINR(totals.paid)}`,
       subtitle: (
         <span className="inline-flex items-center gap-2">
           <span className="text-[#00C950] font-extrabold">▲</span>
@@ -1187,7 +1219,7 @@ useEffect(() => {
     },
     {
       title: "PENDING PAYMENTS",
-      value: `₹${formatINR(totals.pending)}`,
+      value: `${currencySymbol}${formatINR(totals.pending)}`,   // ✅ FIXED
       subtitle: <span className="text-black/60">{totals.pendingCount} pending</span>,
       border: "border-[#F0B100]",
       iconBg: "bg-[#F0B100]",
@@ -1195,7 +1227,7 @@ useEffect(() => {
     },
     {
       title: "OVERDUE",
-      value: `₹${formatINR(totals.overdue)}`,
+      value: `${currencySymbol}${formatINR(totals.overdue)}`,   // ✅ FIXED
       subtitle: <span className="text-black/60">{totals.overdueCount} overdue</span>,
       border: "border-black",
       iconBg: "bg-white",
@@ -1203,11 +1235,11 @@ useEffect(() => {
     },
     {
       title: "DEFAULT FEE",
-      value: `₹${formatINR(totals.defaultFee)}`,
+      value: `${currencySymbol}${formatINR(appBillingSettings.defaultFee)}`,  // ✅ IMPORTANT
       subtitle: <span className="text-black/60">Per consultation</span>,
       border: "border-[#00B8DB]",
       iconBg: "bg-[#00B8DB]",
-      icon: FaRupeeSign,
+      icon: FiTrendingUp,
     },
   ];
 
@@ -1311,7 +1343,10 @@ useEffect(() => {
 
         {/* Info banner */}
         <div className="mt-5">
-          <InfoBanner />
+          <InfoBanner
+            currencySymbol={currencySymbol}
+            defaultFee={appBillingSettings.defaultFee}
+          />
         </div>
 
         {/* Search + Filter */}
@@ -1331,6 +1366,7 @@ useEffect(() => {
             <RecordCard
               key={r.id}
               r={r}
+              currencySymbol={currencySymbol}   // ✅ ADD THIS LINE
               isEditing={!!editing[r.id]?.active}
               draftFee={editing[r.id]?.draft ?? ""}
               onStartEdit={startEdit}

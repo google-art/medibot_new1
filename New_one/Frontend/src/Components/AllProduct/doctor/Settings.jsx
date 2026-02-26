@@ -162,6 +162,7 @@ function HoursRow({ label, value, onChange, badge }) {
 export default function Settings() {
   const [tab, setTab] = useState("doctor"); // doctor | clinic | billing | notifications
   const [saving, setSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   // --- Workable photo upload state ---
   const fileRef = useRef(null);
@@ -196,6 +197,20 @@ export default function Settings() {
     currency: "Indian Rupee (INR)",
     methods: ["Cash", "UPI", "Card"],
   });
+  const getCurrencySymbol = (currency) => {
+    switch (currency) {
+      case "US Dollar (USD)":
+        return "$";
+      case "Euro (EUR)":
+        return "€";
+      case "UAE Dirham (AED)":
+        return "د.إ";
+      default:
+        return "₹";
+    }
+  };
+
+  const currencySymbol = getCurrencySymbol(billing.currency);
 
   const allMethods = ["Cash", "UPI", "Card", "Net Banking", "Paytm", "PhonePe"];
 
@@ -207,7 +222,7 @@ export default function Settings() {
     payment: true,
   });
 
-    // ✅ Load saved settings from localStorage on first render
+  // ✅ Load saved settings from localStorage on first render
   useEffect(() => {
     const savedDoctor = localStorage.getItem("doctorSettings");
     const savedClinic = localStorage.getItem("clinicSettings");
@@ -222,7 +237,7 @@ export default function Settings() {
     if (savedPhoto) setPhotoUrl(savedPhoto);
   }, []);
 
-  
+
   const toggleMethod = (m) => {
     setBilling((prev) => {
       const exists = prev.methods.includes(m);
@@ -230,47 +245,51 @@ export default function Settings() {
     });
   };
 
-const saveChanges = () => {
-  setSaving(true);
+  const saveChanges = () => {
+    setSaving(true);
 
-  // Save everything
-  localStorage.setItem("doctorSettings", JSON.stringify(doctor));
-  localStorage.setItem("clinicSettings", JSON.stringify(clinic));
-  localStorage.setItem("billingSettings", JSON.stringify(billing));
-  localStorage.setItem("notifySettings", JSON.stringify(notify));
-  localStorage.setItem("profilePhoto", photoUrl);
+    localStorage.setItem("doctorSettings", JSON.stringify(doctor));
+    localStorage.setItem("clinicSettings", JSON.stringify(clinic));
+    localStorage.setItem("billingSettings", JSON.stringify(billing));
+    localStorage.setItem("notifySettings", JSON.stringify(notify));
+    localStorage.setItem("profilePhoto", photoUrl);
 
-  setTimeout(() => {
-    setSaving(false);
-    window.location.reload();   // ✅ This line forces automatic reload
-  }, 500);
-};
+    setTimeout(() => {
+      setSaving(false);
+      setShowSuccess(true);   // ✅ show success message
 
+      // auto hide after 3 seconds
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 3000);
+
+    }, 500);
+  };
   const openFilePicker = () => fileRef.current?.click();
 
-const onPhotoPicked = (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+  const onPhotoPicked = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  if (!file.type.startsWith("image/")) {
-    alert("Please select an image file.");
-    return;
-  }
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file.");
+      return;
+    }
 
-  const reader = new FileReader();
+    const reader = new FileReader();
 
-  reader.onload = () => {
-    setPhotoUrl(reader.result); // base64 string (persistent)
+    reader.onload = () => {
+      setPhotoUrl(reader.result); // base64 string (persistent)
+    };
+
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
-  reader.readAsDataURL(file);
-  e.target.value = "";
-};
-
-const removePhoto = () => {
-  setPhotoUrl("");
-  localStorage.removeItem("profilePhoto");
-};
+  const removePhoto = () => {
+    setPhotoUrl("");
+    localStorage.removeItem("profilePhoto");
+  };
 
   return (
     <div
@@ -285,8 +304,12 @@ const removePhoto = () => {
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-black tracking-tight">SETTINGS</h1>
-            <p className="text-sm text-black/55 mt-1">Configure your clinic and preferences</p>
+            <h1 className="text-3xl font-extrabold text-black tracking-tight">
+              SETTINGS
+            </h1>
+            <p className="text-sm text-black/55 mt-1">
+              Configure your clinic and preferences
+            </p>
           </div>
 
           <button
@@ -300,13 +323,25 @@ const removePhoto = () => {
           </button>
         </div>
 
+        {/* ✅ PLACE IT HERE */}
+        {showSuccess && (
+          <div className="mt-4 border-2 border-[#00C950] bg-[#EFFFF4] rounded-md p-3 flex items-center gap-2">
+            <div className="h-8 w-8 border-2 border-black rounded-sm bg-[#00C950] flex items-center justify-center font-extrabold text-black">
+              ✓
+            </div>
+            <div className="text-sm font-extrabold text-black">
+              Changes saved successfully.
+            </div>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="mt-6 flex flex-wrap gap-3">
           <TabButton active={tab === "doctor"} icon={<FiUser />} label="Doctor Profile" onClick={() => setTab("doctor")} />
           <TabButton active={tab === "clinic"} icon={<FiHome />} label="Clinic Details" onClick={() => setTab("clinic")} />
           <TabButton
             active={tab === "billing"}
-            icon={<FaRupeeSign />}
+            icon={<span className="font-bold text-lg">{currencySymbol}</span>}
             label="Billing"
             onClick={() => setTab("billing")}
           />
@@ -507,7 +542,7 @@ const removePhoto = () => {
                 </div>
               </SectionShell>
 
-              
+
             </div>
           )}
 
@@ -518,39 +553,49 @@ const removePhoto = () => {
               title="Billing Settings"
               subtitle="Configure payment and fees"
               iconBoxBg="bg-[#F0B100]"
-              icon={<FaRupeeSign className="text-black text-xl" />}
+              icon={<span className="text-black text-xl font-bold">{currencySymbol}</span>}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>Default Consultation Fee *</Label>
                   <div className="border-2 border-black rounded-sm bg-white h-11 px-3 flex items-center gap-2">
-                    <FaRupeeSign className="text-black/70" />
-<input
-  value={billing.defaultFee}
-  onChange={(e) =>
-    setBilling((p) => ({
-      ...p,
-      defaultFee: e.target.value.replace(/[^\d]/g, "")
-    }))
-  }
-  className="w-full outline-none bg-transparent text-sm text-black placeholder:text-black/35"
-  placeholder="200"
-  inputMode="numeric"
-/>
+                    <span className="text-black/70 font-bold">{currencySymbol}</span>
+                    <input
+                      value={billing.defaultFee}
+                      onChange={(e) =>
+                        setBilling((p) => ({
+                          ...p,
+                          defaultFee: e.target.value.replace(/[^\d]/g, "")
+                        }))
+                      }
+                      className="w-full outline-none bg-transparent text-sm text-black placeholder:text-black/35"
+                      placeholder="200"
+                      inputMode="numeric"
+                    />
                   </div>
                 </div>
 
                 <div>
                   <Label>Currency *</Label>
-                  <div className="border-2 border-black rounded-sm bg-white h-11 px-3 flex items-center justify-between gap-2">
-                    <div className="text-sm text-black">{billing.currency}</div>
-                    <FiChevronDown className="text-black/70" />
-                  </div>
-                  <div className="text-[11px] text-black/45 mt-1">(Static dropdown UI — wire later)</div>
+                  <select
+                    value={billing.currency}
+                    onChange={(e) =>
+                      setBilling((prev) => ({
+                        ...prev,
+                        currency: e.target.value,
+                      }))
+                    }
+                    className="w-full h-11 border-2 border-black rounded-sm px-3 text-sm bg-white"
+                  >
+                    <option>Indian Rupee (INR)</option>
+                    <option>US Dollar (USD)</option>
+                    <option>Euro (EUR)</option>
+                    <option>UAE Dirham (AED)</option>
+                  </select>
                 </div>
               </div>
 
-              
+
 
               <div className="mt-5 border-2 border-[#F0B100] bg-[#FFFBEE] rounded-md p-4">
                 <div className="flex items-start gap-3">
@@ -560,9 +605,9 @@ const removePhoto = () => {
                   <div>
                     <div className="font-extrabold text-xs text-black uppercase">Quick Tip</div>
                     <div className="text-xs text-black/60 mt-1">
-                    The default consultation fee (₹{billing.defaultFee || "200"})
-                       will be automatically applied to new
-                      appointments. You can edit individual fees in the Billing section.
+                      The default consultation fee ({currencySymbol}{billing.defaultFee || "200"}){" "}
+                      will be automatically applied to new appointments.
+
                     </div>
                   </div>
                 </div>
