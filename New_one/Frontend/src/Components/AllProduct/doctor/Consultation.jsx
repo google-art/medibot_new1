@@ -207,23 +207,26 @@ export default function Consultation() {
   }, [draft]);
 
   const patientName = draft?.patientName || "—";
+  const patientId = draft?.patientId || "—";   // ✅ ADD THIS LINE
   const vitals = draft?.vitals || {};
+  const patientEmail = draft?.email || draft?.patientEmail || "";
+  const patientPhone = draft?.phone || draft?.patientPhone || "";
   const capturedAt = draft?.capturedAt ? new Date(draft.capturedAt) : null;
 
   // Voice recording (SIMULATED timer)
-// Voice recording (SIMULATED timer)
-const [isRecording, setIsRecording] = useState(false);
-const [isPaused, setIsPaused] = useState(false);
-const [recordingTime, setRecordingTime] = useState(0);
+  // Voice recording (SIMULATED timer)
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
 
-// ⭐⭐⭐ ADD HERE (immediately below recordingTime line)
-const [audioBlob, setAudioBlob] = useState(null);
-const [audioUrl, setAudioUrl] = useState(null);
-const audioRef = React.useRef(null);
-const mediaRecorderRef = React.useRef(null);
-const chunksRef = React.useRef([]);
+  // ⭐⭐⭐ ADD HERE (immediately below recordingTime line)
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const audioRef = React.useRef(null);
+  const mediaRecorderRef = React.useRef(null);
+  const chunksRef = React.useRef([]);
 
-const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   // AI pipeline
   const [sent, setSent] = useState(false);
   const [step, setStep] = useState(0);
@@ -265,110 +268,122 @@ const [isPlaying, setIsPlaying] = useState(false);
   }, [isRecording, isPaused]);
 
   // AI pipeline simulation
-  useEffect(() => {
-    if (!sent) return;
 
-    if (step < steps.length) {
-      const t = setTimeout(() => setStep((s) => s + 1), 900);
-      return () => clearTimeout(t);
-    }
-
-    if (step === steps.length) {
-      const t2 = setTimeout(() => setFilled(true), 600);
-      return () => clearTimeout(t2);
-    }
-  }, [sent, step, steps.length]);
 
 
   const transcriptText = aiText;
 
 
- 
+
   const canSendToAI = recordingTime > 0 && !sent;
 
-const handleStart = async () => {
-  setSent(false);
-  setStep(0);
-  setFilled(false);
+  const handleStart = async () => {
+    setSent(false);
+    setStep(0);
+    setFilled(false);
 
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-  const mediaRecorder = new MediaRecorder(stream);
-  mediaRecorderRef.current = mediaRecorder;
-  chunksRef.current = [];
+    const mediaRecorder = new MediaRecorder(stream);
+    mediaRecorderRef.current = mediaRecorder;
+    chunksRef.current = [];
 
-  mediaRecorder.ondataavailable = (e) => {
-    if (e.data.size > 0) chunksRef.current.push(e.data);
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+      const url = URL.createObjectURL(blob);
+
+      setAudioBlob(blob);
+      setAudioUrl(url);
+      setIsPlaying(false);
+    };
+
+    mediaRecorder.start();
+
+    setIsRecording(true);
+    setIsPaused(false);
+    setRecordingTime(0);
   };
 
-  mediaRecorder.onstop = () => {
-  const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-  const url = URL.createObjectURL(blob);
 
-  setAudioBlob(blob);
-  setAudioUrl(url);
-  setIsPlaying(false);
-};
+  const handleStop = () => {
+    if (!mediaRecorderRef.current) return;
 
-  mediaRecorder.start();
-
-  setIsRecording(true);
-  setIsPaused(false);
-  setRecordingTime(0);
-};
-
-
-const handleStop = () => {
-  if (!mediaRecorderRef.current) return;
-
-  mediaRecorderRef.current.stop();
-  setIsRecording(false);
-  setIsPaused(false);
-};
+    mediaRecorderRef.current.stop();
+    setIsRecording(false);
+    setIsPaused(false);
+  };
 
   const handlePause = () => {
     if (!isRecording) return;
     setIsPaused((p) => !p);
   };
 
-const handleSendToAI = async () => {
-  try {
-    setSent(true);
+  const handleSendToAI = async () => {
+    try {
+      setSent(true);
+      setStep(1); // Audio Received
 
-    // create form data (audio + extra info)
-    const formData = new FormData();
-    formData.append("audio", audioBlob);
+      const formData = new FormData();
+      formData.append("audio", audioBlob);
+      formData.append("height", vitals?.height || "");
+      formData.append("weight", vitals?.weight || "");
+      formData.append("bp", vitals?.bp || "");
 
-    // optional — if you have vitals state
-    formData.append("height", vitals?.height || "");
-    formData.append("weight", vitals?.weight || "");
-    formData.append("bp", vitals?.bp || "");
+      const response = await fetch(
+        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/voice2textconversion112",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
-    const response = await fetch(
-      "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/voice2textconversion112",
-      {
-        method: "POST",
-        body: formData,
+      setStep(2); // Transcribing
+
+      const result = await response.json();
+
+      console.log("Webhook result:", result); // 🔥 ADD THIS
+
+      setStep(3); // Extracting
+
+      // ✅ Handle ALL possible formats
+      let data = null;
+
+      if (Array.isArray(result)) {
+        data = result[0];
+      } else if (Array.isArray(result?.data)) {
+        data = result.data[0];
+      } else if (result?.Patient_name) {
+        data = result;
       }
-    );
 
-    const result = await response.json();
+      if (!data) {
+        console.error("Invalid webhook structure:", result);
+        throw new Error("Invalid webhook response structure");
+      }
+      if (!data) throw new Error("Invalid webhook response");
 
-    // fill medical report automatically
-    setMedicalReport({
-      patient: result.patient || "",
-      medication: result.medication || "",
-      symptoms: result.symptoms || "",
-      doctorNotes: result.doctorNotes || "",
-      followup: result.followup || "",
-    });
+      setReport({
+        patient: data.Patient_name || "",
+        medication: data.Meditation || "",
+        symptoms: data.Symptoms || "",
+        notes: data.Doctor_notes || "",
+        followup: data.follow_ups || "",
+      });
 
-    setFilled(true);
+      setAiText(data.Transcribe || "");
 
-  } catch (error) {
-    console.error("Webhook error:", error);
-  }
-};
+      setStep(4); // Generating Report
+      setFilled(true);
+
+    } catch (error) {
+      console.error("Webhook error:", error);
+      alert("AI Processing failed");
+    }
+  };
 
 
   const handleCopyTranscript = async () => {
@@ -395,9 +410,9 @@ const handleSendToAI = async () => {
       `Patient: ${patientName}`,
       capturedAt
         ? `Captured: ${capturedAt.toLocaleDateString()} ${capturedAt.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}`
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`
         : null,
       "",
       `Vitals:`,
@@ -420,50 +435,56 @@ const handleSendToAI = async () => {
   };
 
   const handleSaveAndSend = async () => {
-  if (!filled) return;
+    if (!filled) return;
 
-  try {
-    const formData = new FormData();
+    try {
+      const formData = new FormData();
 
-    // 🔹 Append medical report details
-    formData.append("patientName", patientName);
-    formData.append("height", vitals.height || "");
-    formData.append("weight", vitals.weight || "");
-    formData.append("bp", vitals.bp || "");
-    formData.append("temp", vitals.temp || "");
-    formData.append("pulse", vitals.pulse || "");
+      // 🔹 Append medical report details
+      formData.append("patientId", patientId); 
+      formData.append("patientName", patientName);
+      formData.append("patientEmail", patientEmail);
+      formData.append("patientPhone", patientPhone);
+      formData.append("height", vitals.height || "");
+      formData.append("weight", vitals.weight || "");
+      formData.append("bp", vitals.bp || "");
+      formData.append("temp", vitals.temp || "");
+      formData.append("pulse", vitals.pulse || "");
 
-    formData.append("diagnosis", report?.diagnosis || "");
-    formData.append("medication", report?.medication || "");
-    formData.append("symptoms", report?.symptoms || "");
-    formData.append("notes", report?.notes || "");
-    formData.append("followup", report?.followup || "");
+      formData.append("diagnosis", report?.diagnosis || "");
+      formData.append("medication", report?.medication || "");
+      formData.append("symptoms", report?.symptoms || "");
+      formData.append("notes", report?.notes || "");
+      formData.append("followup", report?.followup || "");
 
-    // 🔹 Append uploaded file (binary)
-    if (uploadedFile) {
-      formData.append("reportFile", uploadedFile);
-    }
-
-    const res = await fetch(
-      "http://localhost:3001/api/medibot/confirm",
-      {
-        method: "POST",
-        body: formData,
+      // 🔹 Append uploaded file (binary)
+      // 🔹 Append uploaded file (binary)
+      if (uploadedFile) {
+        formData.append("reportFile", uploadedFile);
       }
-    );
 
-    const data = await res.json();
+      const res = await fetch(
+        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/patient_details_save_and_send",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
-    if (data.success) {
-      alert("Medical report saved successfully!");
+      if (!res.ok) {
+        throw new Error("Webhook failed");
+      }
+
+      alert("Medical report sent successfully!");
       openWhatsApp(buildShareText());
-    }
 
-  } catch (err) {
-    console.error("❌ Save failed:", err);
-    alert("Save failed");
-  }
-};
+    } catch (err) {
+      console.error("❌ Save failed:", err);
+      alert("Save failed");
+    }
+  };
+
+
 
   // ✅ Keep mock consultations only for NON-existing flow (optional)
   const consultations = useMemo(
@@ -471,42 +492,42 @@ const handleSendToAI = async () => {
       isExistingConsultation
         ? []
         : [
-            {
-              id: 1,
-              name: "John Smith",
-              age: "45Y Male",
-              type: "Follow-up",
-              date: "1/28/2026",
-              time: "10:30 AM",
-              duration: "12:34",
-              status: "COMPLETED",
-              presentHistory:
-                "Chronic lower back pain for 6 months. Stiffness in morning. Pain worsens with prolonged sitting.",
-              pastHistory:
-                "Hypertension (2018), Hyperlipidemia (2020). Appendectomy (2015). Allergy: Penicillin.",
-              vitalSigns: "BP: 132/84, HR: 72, Temp: 98.6°F, SpO2: 98%",
-              diagnosis: "Chronic mechanical lower back pain",
-              treatment: "PT referral, ibuprofen PRN, core strengthening exercises.",
-            },
-            {
-              id: 2,
-              name: "Sarah Johnson",
-              age: "32Y Female",
-              type: "Emergency",
-              date: "1/28/2026",
-              time: "11:15 AM",
-              duration: "08:22",
-              status: "COMPLETED",
-              presentHistory:
-                "Severe frontal headache with photophobia and nausea for 3 days. Sleep disturbance.",
-              pastHistory:
-                "No chronic conditions. Prior migraine episodes (2 in last year). Family history: migraines.",
-              vitalSigns: "BP: 118/76, HR: 68, Temp: 98.2°F, SpO2: 99%",
-              diagnosis: "Migraine without aura",
-              treatment:
-                "Sumatriptan PRN, hydration, dark room rest, follow-up if persistent.",
-            },
-          ],
+          {
+            id: 1,
+            name: "John Smith",
+            age: "45Y Male",
+            type: "Follow-up",
+            date: "1/28/2026",
+            time: "10:30 AM",
+            duration: "12:34",
+            status: "COMPLETED",
+            presentHistory:
+              "Chronic lower back pain for 6 months. Stiffness in morning. Pain worsens with prolonged sitting.",
+            pastHistory:
+              "Hypertension (2018), Hyperlipidemia (2020). Appendectomy (2015). Allergy: Penicillin.",
+            vitalSigns: "BP: 132/84, HR: 72, Temp: 98.6°F, SpO2: 98%",
+            diagnosis: "Chronic mechanical lower back pain",
+            treatment: "PT referral, ibuprofen PRN, core strengthening exercises.",
+          },
+          {
+            id: 2,
+            name: "Sarah Johnson",
+            age: "32Y Female",
+            type: "Emergency",
+            date: "1/28/2026",
+            time: "11:15 AM",
+            duration: "08:22",
+            status: "COMPLETED",
+            presentHistory:
+              "Severe frontal headache with photophobia and nausea for 3 days. Sleep disturbance.",
+            pastHistory:
+              "No chronic conditions. Prior migraine episodes (2 in last year). Family history: migraines.",
+            vitalSigns: "BP: 118/76, HR: 68, Temp: 98.2°F, SpO2: 99%",
+            diagnosis: "Migraine without aura",
+            treatment:
+              "Sumatriptan PRN, hydration, dark room rest, follow-up if persistent.",
+          },
+        ],
     [isExistingConsultation]
   );
 
@@ -528,35 +549,49 @@ const handleSendToAI = async () => {
       <main className="mx-auto max-w-[1100px] px-6 py-7">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-extrabold text-black tracking-tight">
-              CONSULTATION
-            </h1>
-            <p className="text-sm text-black/55 mt-1">
-              Voice record → AI processing → Report
-            </p>
+  <div>
+    <h1 className="text-3xl font-extrabold text-black tracking-tight">
+      CONSULTATION
+    </h1>
+    <p className="text-sm text-black/55 mt-1">
+      Voice record → AI processing → Report
+    </p>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Tag bg="bg-white">
-                <span className="inline-flex items-center gap-2">
-                  <FiUser className="text-black/60" /> {patientName}
-                </span>
-              </Tag>
-              <Tag bg="bg-[#EAFBFF]">BP: {vitals.bp || "—"}</Tag>
-              {capturedAt ? (
-                <Tag bg="bg-[#EAFBFF]">
-                  <span className="inline-flex items-center gap-2">
-                    <FiClock className="text-black/60" />{" "}
-                    {capturedAt.toLocaleDateString()}{" "}
-                    {capturedAt.toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </Tag>
-              ) : null}
-            </div>
-          </div>
+    {/* ✅ Patient Info Tags */}
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+
+      <Tag bg="bg-[#EAFBFF]">
+        ID: {patientId}
+      </Tag>
+
+      <Tag bg="bg-white">
+        <span className="inline-flex items-center gap-2">
+          <FiUser className="text-black/60" />
+          {patientName}
+        </span>
+      </Tag>
+
+      <Tag bg="bg-[#EAFBFF]">
+        BP: {vitals.bp || "—"}
+      </Tag>
+
+      {capturedAt && (
+        <Tag bg="bg-[#EAFBFF]">
+          <span className="inline-flex items-center gap-2">
+            <FiClock className="text-black/60" />
+            {capturedAt.toLocaleDateString()}{" "}
+            {capturedAt.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+        </Tag>
+      )}
+
+    </div>
+  </div>
+
+
 
           <div className="flex items-center gap-3">
             <SecondaryButton
@@ -590,66 +625,66 @@ const handleSendToAI = async () => {
                 <FiMic />
               </IconSquare>
             }
-           >
+          >
             <div className="flex items-center justify-between gap-3 border-2 border-black rounded-md bg-white p-4">
 
-    <div>
-      <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
-        DURATION
-      </div>
-      <div className="mt-1 text-3xl font-extrabold text-black font-mono">
-        {formatTime(recordingTime)}
-      </div>
-    </div>
+              <div>
+                <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
+                  DURATION
+                </div>
+                <div className="mt-1 text-3xl font-extrabold text-black font-mono">
+                  {formatTime(recordingTime)}
+                </div>
+              </div>
 
-    <div className="flex items-center gap-2">
-      {isRecording ? (
-        <Tag bg="bg-[#EAFBFF]">{isPaused ? "PAUSED" : "RECORDING"}</Tag>
-      ) : (
-        audioBlob && (
-          <button
-  type="button"
-  onClick={() => {
-    if (!audioRef.current) return;
+              <div className="flex items-center gap-2">
+                {isRecording ? (
+                  <Tag bg="bg-[#EAFBFF]">{isPaused ? "PAUSED" : "RECORDING"}</Tag>
+                ) : (
+                  audioBlob && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!audioRef.current) return;
 
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      audioRef.current.play();
-      setIsPlaying(true);
-    }
-  }}
-  className="h-8 px-3 border-2 border-black rounded-sm bg-white text-xs font-extrabold uppercase inline-flex items-center gap-2"
->
-  {isPlaying ? (
-    <>
-      <FiPause /> PAUSE
-    </>
-  ) : (
-    <>
-      <FiPlay /> PLAY
-    </>
-  )}
-</button>
-        )
-      )}
-    </div>
+                        if (isPlaying) {
+                          audioRef.current.pause();
+                          setIsPlaying(false);
+                        } else {
+                          audioRef.current.play();
+                          setIsPlaying(true);
+                        }
+                      }}
+                      className="h-8 px-3 border-2 border-black rounded-sm bg-white text-xs font-extrabold uppercase inline-flex items-center gap-2"
+                    >
+                      {isPlaying ? (
+                        <>
+                          <FiPause /> PAUSE
+                        </>
+                      ) : (
+                        <>
+                          <FiPlay /> PLAY
+                        </>
+                      )}
+                    </button>
+                  )
+                )}
+              </div>
 
-  </div>
+            </div>
 
-  {/* 👇👇 ADD THIS RIGHT HERE 👇👇 */}
-  {audioBlob && (
-  <audio
-    ref={audioRef}
-    src={audioUrl}
-    className="hidden"
-    onEnded={() => setIsPlaying(false)}
-  />
-)}
+            {/* 👇👇 ADD THIS RIGHT HERE 👇👇 */}
+            {audioBlob && (
+              <audio
+                ref={audioRef}
+                src={audioUrl}
+                className="hidden"
+                onEnded={() => setIsPlaying(false)}
+              />
+            )}
 
-  {/* THEN your START / STOP / PAUSE buttons continue below */}
-  <div className="mt-4 grid grid-cols-3 gap-2"></div>
+            {/* THEN your START / STOP / PAUSE buttons continue below */}
+            <div className="mt-4 grid grid-cols-3 gap-2"></div>
 
 
             <div className="mt-4 grid grid-cols-3 gap-2">
@@ -706,42 +741,42 @@ const handleSendToAI = async () => {
 
             <div className="mt-4 flex items-center justify-between gap-3">
 
-  {/* Upload Audio */}
-  <label className="h-9 px-3 border-2 border-black rounded-sm bg-white text-xs font-extrabold uppercase inline-flex items-center gap-2 cursor-pointer hover:brightness-95 active:brightness-90">
-    <FiUpload />
-    UPLOAD AUDIO
-    <input
-      type="file"
-      accept="audio/*"
-      className="hidden"
-      onChange={(e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+              {/* Upload Audio */}
+              <label className="h-9 px-3 border-2 border-black rounded-sm bg-white text-xs font-extrabold uppercase inline-flex items-center gap-2 cursor-pointer hover:brightness-95 active:brightness-90">
+                <FiUpload />
+                UPLOAD AUDIO
+                <input
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
 
-  const url = URL.createObjectURL(file);
+                    const url = URL.createObjectURL(file);
 
-  setAudioBlob(file);
-  setAudioUrl(url);
-  setIsRecording(false);
-  setRecordingTime(0);
-  setIsPlaying(false);
+                    setAudioBlob(file);
+                    setAudioUrl(url);
+                    setIsRecording(false);
+                    setRecordingTime(0);
+                    setIsPlaying(false);
 
-  alert("Audio uploaded successfully ✅");
-}}
-    />
-  </label>
+                    alert("Audio uploaded successfully ✅");
+                  }}
+                />
+              </label>
 
-  {/* Smaller Send Button */}
-  <PrimaryButton
-    onClick={handleSendToAI}
-    leftIcon={<FiCheck />}
-    disabled={!audioBlob}
-    className="min-w-[170px]"
-  >
-    {sent && !filled ? "PROCESSING..." : "SEND TO AI"}
-  </PrimaryButton>
+              {/* Smaller Send Button */}
+              <PrimaryButton
+                onClick={handleSendToAI}
+                leftIcon={<FiCheck />}
+                disabled={!audioBlob}
+                className="min-w-[170px]"
+              >
+                {sent && !filled ? "PROCESSING..." : "SEND TO AI"}
+              </PrimaryButton>
 
-</div>
+            </div>
 
             <div className="mt-3 text-sm text-black/55">
               Tip: record for a few seconds, then click{" "}
@@ -889,70 +924,70 @@ const handleSendToAI = async () => {
                 </div>
               </div>
 
-              
-                {/* Row 1 - 3 Columns */}
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-  <div className="border-2 border-black rounded-md bg-white p-3">
-    <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
-      PATIENT
-    </div>
-    <div className="mt-1 text-sm text-black">
-      {filled ? report?.patient || "—" : "—"}
-    </div>
-  </div>
+              {/* Row 1 - 3 Columns */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-  
-
-  <div className="border-2 border-black rounded-md bg-white p-3">
-    <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
-      MEDICATION
-    </div>
-    <div className="mt-1 text-sm text-black">
-      {filled ? report?.medication : "—"}
-    </div>
-  </div>
-
-</div>
+                <div className="border-2 border-black rounded-md bg-white p-3">
+                  <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
+                    PATIENT
+                  </div>
+                  <div className="mt-1 text-sm text-black">
+                    {filled ? report?.patient || "—" : "—"}
+                  </div>
+                </div>
 
 
-{/* Row 2 - 2 Columns */}
-<div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
 
-  <div className="border-2 border-black rounded-md bg-white p-3">
-    <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
-      SYMPTOMS
-    </div>
-    <div className="mt-1 text-sm text-black">
-      {filled ? report?.symptoms : "—"}
-    </div>
-  </div>
+                <div className="border-2 border-black rounded-md bg-white p-3">
+                  <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
+                    MEDICATION
+                  </div>
+                  <div className="mt-1 text-sm text-black">
+                    {filled ? report?.medication : "—"}
+                  </div>
+                </div>
 
-  <div className="border-2 border-black rounded-md bg-white p-3">
-    <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
-      DOCTOR NOTES
-    </div>
-    <div className="mt-1 text-sm text-black">
-      {filled ? report?.notes : "—"}
-    </div>
-  </div>
-
-</div>
+              </div>
 
 
-{/* Row 3 - Full Width */}
-<div className="mt-4 border-2 border-black rounded-md bg-white p-3">
-  <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
-    FOLLOW-UP INSTRUCTIONS
-  </div>
-  <div className="mt-1 text-sm text-black">
-    {filled ? report?.followup : "—"}
-  </div>
-</div>
+              {/* Row 2 - 2 Columns */}
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <div className="border-2 border-black rounded-md bg-white p-3">
+                  <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
+                    SYMPTOMS
+                  </div>
+                  <div className="mt-1 text-sm text-black">
+                    {filled ? report?.symptoms : "—"}
+                  </div>
+                </div>
+
+                <div className="border-2 border-black rounded-md bg-white p-3">
+                  <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
+                    DOCTOR NOTES
+                  </div>
+                  <div className="mt-1 text-sm text-black">
+                    {filled ? report?.notes : "—"}
+                  </div>
+                </div>
+
+              </div>
+
+
+              {/* Row 3 - Full Width */}
+              <div className="mt-4 border-2 border-black rounded-md bg-white p-3">
+                <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
+                  FOLLOW-UP INSTRUCTIONS
+                </div>
+                <div className="mt-1 text-sm text-black">
+                  {filled ? report?.followup : "—"}
+                </div>
+              </div>
 
               <div className="mt-5 flex justify-end">
                 <PrimaryButton onClick={handleSaveAndSend} disabled={!filled}>
-                  SAVE & SEND (WHATSAPP)
+                  SAVE & SEND (Email)
                 </PrimaryButton>
               </div>
             </Card>
@@ -962,114 +997,116 @@ const handleSendToAI = async () => {
         {/* ✅ REMOVED: Recent Consultations section for existing consultations
             If you still want it for NEW consultations only, you can re-add it with:
             {!isExistingConsultation && (...)}  */}
-      </main>
+      </main >
 
       {/* ✅ HISTORY MODAL only for NON-existing consultations */}
-      {!isExistingConsultation && (
-        <Modal
-          open={showHistory}
-          title="CONSULTATION HISTORY"
-          onClose={() => {
-            setShowHistory(false);
-            setSelectedConsultation(null);
-          }}
-          widthClass="max-w-[980px]"
-        >
-          {selectedConsultation ? (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Tag bg="bg-white">{selectedConsultation.name}</Tag>
-                <Tag bg="bg-[#EAFBFF]">{selectedConsultation.age}</Tag>
-                <Tag bg="bg-[#EAFBFF]">{selectedConsultation.type}</Tag>
-                <Tag bg="bg-[#EAFBFF]">
-                  {selectedConsultation.date} • {selectedConsultation.time}
-                </Tag>
-              </div>
+      {
+        !isExistingConsultation && (
+          <Modal
+            open={showHistory}
+            title="CONSULTATION HISTORY"
+            onClose={() => {
+              setShowHistory(false);
+              setSelectedConsultation(null);
+            }}
+            widthClass="max-w-[980px]"
+          >
+            {selectedConsultation ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Tag bg="bg-white">{selectedConsultation.name}</Tag>
+                  <Tag bg="bg-[#EAFBFF]">{selectedConsultation.age}</Tag>
+                  <Tag bg="bg-[#EAFBFF]">{selectedConsultation.type}</Tag>
+                  <Tag bg="bg-[#EAFBFF]">
+                    {selectedConsultation.date} • {selectedConsultation.time}
+                  </Tag>
+                </div>
 
-              <div className="border-2 border-[#00B8DB] bg-white rounded-md p-4">
-                <div className="text-[11px] font-extrabold text-black/60 uppercase">
-                  Present History
-                </div>
-                <div className="mt-1 text-sm text-black">
-                  {selectedConsultation.presentHistory}
-                </div>
-              </div>
-
-              <div className="border-2 border-[#F0B100] bg-white rounded-md p-4">
-                <div className="text-[11px] font-extrabold text-black/60 uppercase">
-                  Past History
-                </div>
-                <div className="mt-1 text-sm text-black">
-                  {selectedConsultation.pastHistory}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="border-2 border-black bg-white rounded-md p-4">
+                <div className="border-2 border-[#00B8DB] bg-white rounded-md p-4">
                   <div className="text-[11px] font-extrabold text-black/60 uppercase">
-                    Vital Signs
+                    Present History
                   </div>
                   <div className="mt-1 text-sm text-black">
-                    {selectedConsultation.vitalSigns}
+                    {selectedConsultation.presentHistory}
                   </div>
                 </div>
-                <div className="border-2 border-black bg-white rounded-md p-4">
+
+                <div className="border-2 border-[#F0B100] bg-white rounded-md p-4">
                   <div className="text-[11px] font-extrabold text-black/60 uppercase">
-                    Diagnosis
+                    Past History
                   </div>
                   <div className="mt-1 text-sm text-black">
-                    {selectedConsultation.diagnosis}
+                    {selectedConsultation.pastHistory}
                   </div>
                 </div>
-              </div>
 
-              <div className="border-2 border-[#00B8DB] bg-white rounded-md p-4">
-                <div className="text-[11px] font-extrabold text-black/60 uppercase">
-                  Treatment Plan
-                </div>
-                <div className="mt-1 text-sm text-black">
-                  {selectedConsultation.treatment}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="text-sm text-black/60">
-                Select a consultation to view details.
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {consultations.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setSelectedConsultation(c)}
-                    className="text-left border-2 border-[#00B8DB] bg-white rounded-md p-4 hover:brightness-95 active:brightness-90"
-                  >
-                    <div className="font-extrabold text-black">{c.name}</div>
-                    <div className="text-sm text-black/60 mt-1">
-                      {c.type} • {c.date} • {c.time}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="border-2 border-black bg-white rounded-md p-4">
+                    <div className="text-[11px] font-extrabold text-black/60 uppercase">
+                      Vital Signs
                     </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+                    <div className="mt-1 text-sm text-black">
+                      {selectedConsultation.vitalSigns}
+                    </div>
+                  </div>
+                  <div className="border-2 border-black bg-white rounded-md p-4">
+                    <div className="text-[11px] font-extrabold text-black/60 uppercase">
+                      Diagnosis
+                    </div>
+                    <div className="mt-1 text-sm text-black">
+                      {selectedConsultation.diagnosis}
+                    </div>
+                  </div>
+                </div>
 
-          <div className="mt-4 flex justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                setShowHistory(false);
-                setSelectedConsultation(null);
-              }}
-              className="h-9 px-4 border-2 border-black rounded-sm bg-white font-extrabold text-xs uppercase"
-            >
-              BACK
-            </button>
-          </div>
-        </Modal>
-      )}
-    </div>
+                <div className="border-2 border-[#00B8DB] bg-white rounded-md p-4">
+                  <div className="text-[11px] font-extrabold text-black/60 uppercase">
+                    Treatment Plan
+                  </div>
+                  <div className="mt-1 text-sm text-black">
+                    {selectedConsultation.treatment}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="text-sm text-black/60">
+                  Select a consultation to view details.
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {consultations.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedConsultation(c)}
+                      className="text-left border-2 border-[#00B8DB] bg-white rounded-md p-4 hover:brightness-95 active:brightness-90"
+                    >
+                      <div className="font-extrabold text-black">{c.name}</div>
+                      <div className="text-sm text-black/60 mt-1">
+                        {c.type} • {c.date} • {c.time}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHistory(false);
+                  setSelectedConsultation(null);
+                }}
+                className="h-9 px-4 border-2 border-black rounded-sm bg-white font-extrabold text-xs uppercase"
+              >
+                BACK
+              </button>
+            </div>
+          </Modal>
+        )
+      }
+    </div >
   );
 }

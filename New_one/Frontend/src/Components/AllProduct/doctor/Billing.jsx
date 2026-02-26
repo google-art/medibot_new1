@@ -1014,12 +1014,47 @@ const Billing = () => {
     };
   }, [records, revenueFilter]);
 
+// ✅ Monthly summary for Dashboard only
+useEffect(() => {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1; // 1–12
+  const currentYear = now.getFullYear();
+
+  const monthlyRecords = records.filter((r) => {
+    if (!r.date) return false;
+
+    const parts = r.date.split("/"); // format: M/D/YYYY
+    if (parts.length !== 3) return false;
+
+    const month = Number(parts[0]);
+    const year = Number(parts[2]);
+
+    return month === currentMonth && year === currentYear;
+  });
+
+  const monthlyPending = monthlyRecords
+    .filter((r) => r.status === "pending")
+    .reduce((sum, r) => sum + (r.fee || 0), 0);
+
+  const monthlyPendingCount = monthlyRecords.filter(
+    (r) => r.status === "pending"
+  ).length;
+
+  localStorage.setItem(
+    "billingSummary",
+    JSON.stringify({
+      pendingAmount: monthlyPending,
+      pendingCount: monthlyPendingCount,
+    })
+  );
+}, [records]);
+
   useEffect(() => {
     fetchBillingSummary();   // GET from sheet
     autoSaveDailySummary();  // POST daily save
   }, []); // run only once when page loads
   // ✅ patient summary (counts)
-  
+
   const patientSummary = useMemo(() => {
     const paid = records.filter((r) => r.status === "paid").length;
     const pending = records.filter((r) => r.status === "pending").length;

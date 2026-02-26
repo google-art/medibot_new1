@@ -331,12 +331,12 @@ const NotificationPanel = ({
   if (!open) return null;
 
   if (!notifications || notifications.length === 0) {
-  return (
-    <div className="absolute right-0 top-[42px] w-[340px] border-2 border-black bg-white rounded-md shadow-xl z-50 p-4">
-      <p className="text-sm text-black/60">No new notifications</p>
-    </div>
-  );
-}
+    return (
+      <div className="absolute right-0 top-[42px] w-[340px] border-2 border-black bg-white rounded-md shadow-xl z-50 p-4">
+        <p className="text-sm text-black/60">No new notifications</p>
+      </div>
+    );
+  }
 
 
   const visible = showAll ? notifications : notifications.slice(0, 3);
@@ -407,10 +407,42 @@ const NotificationPanel = ({
 };
 
 /* ---------- Dashboard Page ---------- */
+const pad2 = (n) => String(n).padStart(2, "0");
+
+const t24ToMinutes = (t24) => {
+  const [h, m] = t24.split(":").map(Number);
+  return h * 60 + m;
+};
+
+const minutesToT24 = (min) => {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${pad2(h)}:${pad2(m)}`;
+};
+
+const buildSlotsFromRanges = (ranges) => {
+  const out = new Set();
+  for (const r of ranges) {
+    if (!r.start || !r.end) continue;
+
+    const startMin = t24ToMinutes(r.start);
+    const endMin = t24ToMinutes(r.end);
+
+    for (let m = startMin; m < endMin; m += 15) {
+      out.add(minutesToT24(m));
+    }
+  }
+  return [...out];
+};
+
 
 const Dashboard = () => {
   const navigate = useNavigate();
-
+  const [todayAppointments, setTodayAppointments] = useState(0);
+  const [availableSlots, setAvailableSlots] = useState(0);
+  const [reportsGenerated, setReportsGenerated] = useState(0);
+  const [pendingAmount, setPendingAmount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifShowAll, setNotifShowAll] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -463,47 +495,148 @@ const Dashboard = () => {
     };
   }, [notifOpen]);
 
-useEffect(() => {
-  let lastBookingId = null;
+  useEffect(() => {
+    let lastBookingId = null;
 
-  const interval = setInterval(async () => {
-    try {
-      const res = await fetch(
-        "http://localhost:3001/api/medibot/latest-booking"
-      );
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(
+          "http://localhost:3001/api/medibot/latest-booking"
+        );
 
-      const data = await res.json();
+        const data = await res.json();
 
-      if (!data || !data.latest) return;
+        if (!data || !data.latest) return;
 
-      const booking = data.latest;
+        const booking = data.latest;
 
-      if (booking["Book-id"] === lastBookingId) return;
+        if (booking["Book-id"] === lastBookingId) return;
 
-      lastBookingId = booking["Book-id"];
+        lastBookingId = booking["Book-id"];
 
-      setNotifications((prev) => [
-        {
-          id: Date.now(),
-          title: `${booking.Name} - New appointment booked`,
-          desc: "",
-          time: new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          }),
-          pill: "bg-white border-black",
-          dot: "bg-[#00B8DB]",
-        },
-        ...prev,
-      ]);
-    } catch (err) {
-      console.error("Polling error:", err);
-    }
-  }, 5000);
+        setNotifications((prev) => [
+          {
+            id: Date.now(),
+            title: `${booking.Name} - New appointment booked`,
+            desc: "",
+            time: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            }),
+            pill: "bg-white border-black",
+            dot: "bg-[#00B8DB]",
+          },
+          ...prev,
+        ]);
+      } catch (err) {
+        console.error("Polling error:", err);
+      }
+    }, 5000);
 
-  return () => clearInterval(interval);
-}, []);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const getTodayCount = () => {
+      const stored = localStorage.getItem("bookingsByDate");
+
+      if (!stored) {
+        setTodayAppointments(0);
+        return;
+      }
+
+      const bookings = JSON.parse(stored);
+
+      const todayKey = new Date().toISOString().slice(0, 10);
+      const todayBookings = bookings[todayKey] || {};
+
+      setTodayAppointments(Object.keys(todayBookings).length);
+    };
+
+    getTodayCount();
+
+    const interval = setInterval(getTodayCount, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const calculateAvailableSlots = () => {
+      const hoursStored = localStorage.getItem("hoursByDate");
+      const bookingsStored = localStorage.getItem("bookingsByDate");
+
+      if (!hoursStored) {
+        setAvailableSlots(0);
+        return;
+      }
+
+      const hoursByDate = JSON.parse(hoursStored);
+      const bookingsByDate = bookingsStored
+        ? JSON.parse(bookingsStored)
+        : {};
+
+      const todayKey = new Date().toISOString().slice(0, 10);
+
+      const todayHours = hoursByDate[todayKey];
+      const todayBookings = bookingsByDate[todayKey] || {};
+
+      if (!todayHours || !todayHours.open) {
+        setAvailableSlots(0);
+        return;
+      }
+
+      const allSlots = buildSlotsFromRanges(todayHours.ranges);
+      const bookedCount = Object.keys(todayBookings).length;
+
+      const available = allSlots.length - bookedCount;
+
+      setAvailableSlots(available > 0 ? available : 0);
+    };
+
+    calculateAvailableSlots();
+
+    const interval = setInterval(calculateAvailableSlots, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const getReportsCount = () => {
+      const stored = localStorage.getItem("totalReportsGenerated");
+      setReportsGenerated(stored ? Number(stored) : 0);
+    };
+
+    getReportsCount();
+
+    const interval = setInterval(getReportsCount, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const loadBillingSummary = () => {
+      const stored = localStorage.getItem("billingSummary");
+
+      if (!stored) {
+        setPendingAmount(0);
+        setPendingCount(0);
+        return;
+      }
+
+      const data = JSON.parse(stored);
+
+      setPendingAmount(data.pendingAmount || 0);
+      setPendingCount(data.pendingCount || 0);
+    };
+
+    loadBillingSummary();
+
+    const interval = setInterval(loadBillingSummary, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const rejectSuggestion = (key) => {
     setRejectedSuggestions((prev) => {
       const next = new Set(prev);
@@ -533,7 +666,7 @@ useEffect(() => {
   const stats = [
     {
       title: "TODAY'S APPOINTMENTS",
-      value: "8",
+      value: todayAppointments,
       subtitle: (
         <span className="inline-flex items-center gap-2">
           <span className="text-[#00C950] font-extrabold">▲</span>
@@ -546,16 +679,16 @@ useEffect(() => {
     },
     {
       title: "PENDING PAYMENTS",
-      value: "1,200",
+      value: pendingAmount.toLocaleString("en-IN"),
       valuePrefix: "₹",
-      subtitle: "3 payments due",
+      subtitle: `${pendingCount} payments due`,
       border: "border-[#F0B100]",
       iconBg: "bg-[#F0B100]",
       icon: FaRupeeSign,
     },
     {
       title: "REPORTS GENERATED",
-      value: "12",
+      value: reportsGenerated,
       subtitle: "This week",
       border: "border-black",
       iconBg: "bg-white",
@@ -563,7 +696,7 @@ useEffect(() => {
     },
     {
       title: "AVAILABLE SLOTS",
-      value: "5",
+      value: availableSlots,
       subtitle: "Open for booking",
       border: "border-[#00B8DB]",
       iconBg: "bg-[#00B8DB]",

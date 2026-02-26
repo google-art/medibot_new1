@@ -156,6 +156,9 @@ const SCHEDULE_WEBHOOK =
 const GET_PATIENT_DETAILS_WEBHOOK =
   "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/Get_patient_details";
 
+const PATIENT_REPORT_WEBHOOK =
+  "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/Patient_Report_patient_pannel";
+
 /* ---------- TEMP MEMORY DB ---------- */
 const patients = [];
 
@@ -377,6 +380,40 @@ router.post("/get-patient-details", async (req, res) => {
   } catch (err) {
     console.error("🔥 PATIENT FETCH ERROR:", err);
     res.status(500).json({ error: "Failed to fetch patient details" });
+  }
+});
+
+/* =========================================================
+   🧾 GENERATE PATIENT REPORT CARD → n8n
+========================================================= */
+router.post("/patient-report", async (req, res) => {
+  try {
+    const { patientId } = req.body;
+
+    if (!patientId) {
+      return res.status(400).json({ error: "Patient ID required" });
+    }
+
+    console.log("🧾 Generating report for:", patientId);
+
+    const response = await fetch(PATIENT_REPORT_WEBHOOK, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ patientId }),
+    });
+
+    const data = await response.json();
+
+    console.log("📨 Report response from n8n:", data);
+
+    // 🔥 Send n8n response directly to frontend
+    res.json(data);
+
+  } catch (err) {
+    console.error("🔥 PATIENT REPORT ERROR:", err);
+    res.status(500).json({ error: "Failed to generate patient report" });
   }
 });
 
