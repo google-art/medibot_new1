@@ -80,8 +80,9 @@ export default function SocialMedia() {
   const [scheduling, setScheduling] = useState(false);
 
   const [showOptimization, setShowOptimization] = useState(true);
-  const [isUploadOptional, setIsUploadOptional] = useState(true);
-
+  const [uploadMode, setUploadMode] = useState("optional");
+  const [selectedImprovements, setSelectedImprovements] = useState([]);
+  const [selectedCTAs, setSelectedCTAs] = useState([]);
   const [popupOpen, setPopupOpen] = useState(null);
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleTime, setScheduleTime] = useState("");
@@ -156,13 +157,7 @@ export default function SocialMedia() {
     { name: "General", icon: "👥", color: "from-rose-300 to-pink-500" },
   ];
 
-  const hashtags = [
-    "#Entrepreneurship",
-    "#StartupLife",
-    "#Business",
-    "#Leadership",
-    "#Growth",
-  ];
+
 
   // Add custom styles (only once)
   useEffect(() => {
@@ -208,7 +203,7 @@ export default function SocialMedia() {
       uploadedMedia.forEach((m) => {
         try {
           URL.revokeObjectURL(m.url);
-        } catch {}
+        } catch { }
       });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -220,7 +215,11 @@ export default function SocialMedia() {
     contentIdea.trim() &&
     audience &&
     emojiIntensity &&
-    (postType !== "video" || videoDuration);
+    (postType !== "video" || videoDuration) &&
+    (
+      uploadMode === "optional" ||
+      uploadedMedia.length > 0
+    );
 
   // ✅ helper: get URLs by current postType
   const getWebhookUrls = () => {
@@ -229,35 +228,35 @@ export default function SocialMedia() {
   };
 
   // ✅ generic POST JSON with better error logging
-const postWithFiles = async (url, payload) => {
-  const formData = new FormData();
+  const postWithFiles = async (url, payload) => {
+    const formData = new FormData();
 
-  // Append normal fields
-  Object.entries(payload).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      formData.append(key, typeof value === "object"
-        ? JSON.stringify(value)
-        : value
-      );
+    // Append normal fields
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        formData.append(key, typeof value === "object"
+          ? JSON.stringify(value)
+          : value
+        );
+      }
+    });
+
+    // Append files as binary
+    uploadedMedia.forEach((media, index) => {
+      formData.append("files", media.file); // IMPORTANT
+    });
+
+    const res = await fetch(url, {
+      method: "POST",
+      body: formData, // NO headers here!
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
     }
-  });
 
-  // Append files as binary
-  uploadedMedia.forEach((media, index) => {
-    formData.append("files", media.file); // IMPORTANT
-  });
-
-  const res = await fetch(url, {
-    method: "POST",
-    body: formData, // NO headers here!
-  });
-
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
-  }
-
-  return await res.text();
-};
+    return await res.text();
+  };
 
   // ✅ GENERATE webhook (per postType)
   const sendGenerateWebhook = async (postContent) => {
@@ -333,14 +332,12 @@ const postWithFiles = async (url, payload) => {
         const videos = uploadedMedia.filter((m) => m.type.startsWith("video"));
 
         if (images.length > 0) {
-          post += `📸 Images Attached: ${images.length} image${
-            images.length > 1 ? "s" : ""
-          }\n\n`;
+          post += `📸 Images Attached: ${images.length} image${images.length > 1 ? "s" : ""
+            }\n\n`;
         }
         if (videos.length > 0) {
-          post += `🎥 Videos Attached: ${videos.length} video${
-            videos.length > 1 ? "s" : ""
-          }\n\n`;
+          post += `🎥 Videos Attached: ${videos.length} video${videos.length > 1 ? "s" : ""
+            }\n\n`;
         }
       }
 
@@ -399,20 +396,39 @@ const postWithFiles = async (url, payload) => {
   const removeMedia = (index) => {
     try {
       URL.revokeObjectURL(uploadedMedia[index]?.url);
-    } catch {}
+    } catch { }
     setUploadedMedia((prev) => prev.filter((_, i) => i !== index));
   };
-
   const applyImprovement = (type) => {
     const upgrades = {
       personal: "\n\nPersonal takeaway: This completely changed how I work.",
       bold: "\n\nThis is the harsh truth nobody talks about.",
-      shorten: generatedPost.split("\n").slice(0, 5).join("\n"),
+      shorten: "\n\n(Shortened version applied)",
       story: "\n\nQuick story: I failed before getting it right.",
       stats: "\n\n📊 80% quit before results show.",
-      emojis: generatedPost + " 🚀🔥✨",
+      emojis: " 🚀🔥✨",
+      custom: "\n\n✨ Custom improvement added by user.",
     };
-    const next = upgrades[type] || generatedPost;
+
+    const text = upgrades[type];
+    if (!text) return;
+
+    const alreadySelected = selectedImprovements.includes(type);
+
+    let next = generatedPost;
+
+    if (alreadySelected) {
+      // REMOVE improvement
+      next = generatedPost.replace(text, "");
+      setSelectedImprovements((prev) =>
+        prev.filter((item) => item !== type)
+      );
+    } else {
+      // ADD improvement
+      next = generatedPost + text;
+      setSelectedImprovements((prev) => [...prev, type]);
+    }
+
     setGeneratedPost(next);
     void sendGenerateWebhook(next);
   };
@@ -423,11 +439,29 @@ const postWithFiles = async (url, payload) => {
       soft: "\n\nFollow for more insights.",
       strong: "\n\nComment YES if you agree 👇",
     };
-    const next = generatedPost + (ctas[type] || "");
+
+    const text = ctas[type];
+    if (!text) return;
+
+    const alreadySelected = selectedCTAs.includes(type);
+
+    let next = generatedPost;
+
+    if (alreadySelected) {
+      // REMOVE CTA
+      next = generatedPost.replace(text, "");
+      setSelectedCTAs((prev) =>
+        prev.filter((item) => item !== type)
+      );
+    } else {
+      // ADD CTA
+      next = generatedPost + text;
+      setSelectedCTAs((prev) => [...prev, type]);
+    }
+
     setGeneratedPost(next);
     void sendGenerateWebhook(next);
   };
-
   const addHashtag = (tag) => {
     if (!generatedPost.includes(tag)) {
       const next = generatedPost + "\n" + tag;
@@ -546,9 +580,8 @@ const postWithFiles = async (url, payload) => {
                       className="flex flex-col items-center p-4"
                     >
                       <div
-                        className={`p-3 rounded-full mb-3 ${
-                          platform === p.name ? "bg-white/20" : "bg-gray-100"
-                        }`}
+                        className={`p-3 rounded-full mb-3 ${platform === p.name ? "bg-white/20" : "bg-gray-100"
+                          }`}
                       >
                         {p.icon}
                       </div>
@@ -602,41 +635,49 @@ const postWithFiles = async (url, payload) => {
             )}
 
             {/* Upload Images & Videos */}
-            <Section title="Upload Images & Videos (Optional)" icon={<FiUpload />}>
+            <Section
+              title={`Upload Images & Videos (${uploadMode === "direct" ? "Required" : "Optional"})`} icon={<FiUpload />}>
               <div className="space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-6 text-sm text-gray-600">
+                  {/* Optional Upload */}
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
-                      type="checkbox"
-                      checked={isUploadOptional}
-                      onChange={(e) => setIsUploadOptional(e.target.checked)}
-                      className="rounded border-gray-300 text-cyan-500 focus:ring-cyan-400"
+                      type="radio"
+                      name="uploadMode"
+                      checked={uploadMode === "optional"}
+                      onChange={() => setUploadMode("optional")}
+                      className="text-cyan-500 focus:ring-cyan-400"
                     />
                     Optional Upload
                   </label>
-                  <span className="text-xs text-gray-500">
-                    {uploadedMedia.length} file
-                    {uploadedMedia.length !== 1 ? "s" : ""} uploaded
-                  </span>
+
+                  {/* Direct Upload */}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="uploadMode"
+                      checked={uploadMode === "direct"}
+                      onChange={() => setUploadMode("direct")}
+                      className="text-cyan-500 focus:ring-cyan-400"
+                    />
+                    Direct Upload
+                  </label>
                 </div>
 
                 <label
                   onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl min-h-32 flex flex-col items-center justify-center cursor-pointer transition-all ${
-                    uploadedMedia.length > 0
-                      ? "border-green-400 bg-green-50"
-                      : "border-gray-300 hover:border-cyan-400 hover:bg-cyan-50"
-                  }`}
+                  className={`border-2 border-dashed rounded-xl min-h-32 flex flex-col items-center justify-center cursor-pointer transition-all ${uploadedMedia.length > 0
+                    ? "border-green-400 bg-green-50"
+                    : "border-gray-300 hover:border-cyan-400 hover:bg-cyan-50"
+                    }`}
                 >
                   <FiUpload
-                    className={`text-3xl mb-3 ${
-                      uploadedMedia.length > 0 ? "text-green-500" : "text-gray-400"
-                    }`}
+                    className={`text-3xl mb-3 ${uploadedMedia.length > 0 ? "text-green-500" : "text-gray-400"
+                      }`}
                   />
                   <span
-                    className={`font-medium ${
-                      uploadedMedia.length > 0 ? "text-green-600" : "text-gray-500"
-                    }`}
+                    className={`font-medium ${uploadedMedia.length > 0 ? "text-green-600" : "text-gray-500"
+                      }`}
                   >
                     {uploadedMedia.length > 0
                       ? "Add more files"
@@ -744,11 +785,10 @@ const postWithFiles = async (url, payload) => {
                   <button
                     key={a.name}
                     onClick={() => setAudience(a.name)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all shadow-sm hover:shadow-md ${
-                      audience === a.name
-                        ? `bg-gradient-to-r ${a.color} text-white shadow-md scale-105`
-                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all shadow-sm hover:shadow-md ${audience === a.name
+                      ? `bg-gradient-to-r ${a.color} text-white shadow-md scale-105`
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                      }`}
                   >
                     <span className="text-lg">{a.icon}</span>
                     <span>{a.name}</span>
@@ -767,11 +807,10 @@ const postWithFiles = async (url, payload) => {
                     className="cursor-pointer"
                   >
                     <div
-                      className={`w-12 h-12 mx-auto rounded-full border-2 flex items-center justify-center text-xl mb-2 transition-all ${
-                        emojiIntensity === level.name
-                          ? "border-cyan-400 bg-gradient-to-r from-cyan-50 to-blue-50 shadow-sm"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
+                      className={`w-12 h-12 mx-auto rounded-full border-2 flex items-center justify-center text-xl mb-2 transition-all ${emojiIntensity === level.name
+                        ? "border-cyan-400 bg-gradient-to-r from-cyan-50 to-blue-50 shadow-sm"
+                        : "border-gray-200 hover:border-gray-300"
+                        }`}
                     >
                       {level.icon}
                     </div>
@@ -785,11 +824,10 @@ const postWithFiles = async (url, payload) => {
             <button
               disabled={!isReady || isGenerating}
               onClick={buildPost}
-              className={`w-full py-4 rounded-2xl text-white font-semibold text-lg flex items-center justify-center gap-3 transition-all ${
-                isReady
-                  ? "bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 shadow-lg hover:shadow-xl hover:scale-[1.02]"
-                  : "bg-gradient-to-r from-cyan-200 to-blue-300 opacity-70 cursor-not-allowed"
-              }`}
+              className={`w-full py-4 rounded-2xl text-white font-semibold text-lg flex items-center justify-center gap-3 transition-all ${isReady
+                ? "bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                : "bg-gradient-to-r from-cyan-200 to-blue-300 opacity-70 cursor-not-allowed"
+                }`}
             >
               {isGenerating ? (
                 <>
@@ -818,15 +856,7 @@ const postWithFiles = async (url, payload) => {
                 }
                 actions={
                   <div className="flex gap-3">
-                    <button
-                      onClick={buildPost}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                      title="Regenerate"
-                    >
-                      <FiRefreshCw
-                        className={`${isGenerating ? "animate-spin" : ""}`}
-                      />
-                    </button>
+
                     <button
                       onClick={copyPost}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative"
@@ -947,17 +977,70 @@ const postWithFiles = async (url, payload) => {
             {generatedPost && (
               <Card>
                 <div className="p-6">
-                  <h3 className="font-semibold mb-4 text-lg flex items-center gap-2">
-                    <FiZap className="text-amber-500" />
-                    Add Improvements
-                  </h3>
+                 <div className="flex items-center justify-between mb-4">
+  <h3 className="font-semibold text-lg flex items-center gap-2">
+    <FiZap className="text-amber-500" />
+    Add Improvements
+  </h3>
+
+  <button
+    onClick={() => {
+      setSelectedImprovements([]);
+      buildPost(); // reset to fresh generated post
+    }}
+    className="text-sm px-3 py-1 rounded-lg border border-cyan-300 text-cyan-600 hover:bg-cyan-50 transition"
+  >
+    Change
+  </button>
+</div>
                   <div className="flex flex-wrap gap-2 mb-6">
-                    <Chip onClick={() => applyImprovement("personal")}>More personal</Chip>
-                    <Chip onClick={() => applyImprovement("bold")}>More bold</Chip>
-                    <Chip onClick={() => applyImprovement("shorten")}>Shorten</Chip>
-                    <Chip onClick={() => applyImprovement("story")}>Add story</Chip>
-                    <Chip onClick={() => applyImprovement("stats")}>Add stats</Chip>
-                    <Chip onClick={() => applyImprovement("emojis")}>More emojis</Chip>
+                    <Chip
+                      active={selectedImprovements.includes("personal")}
+                      onClick={() => applyImprovement("personal")}
+                    >
+                      More personal
+                    </Chip>
+
+                    <Chip
+                      active={selectedImprovements.includes("bold")}
+                      onClick={() => applyImprovement("bold")}
+                    >
+                      More bold
+                    </Chip>
+
+                    <Chip
+                      active={selectedImprovements.includes("shorten")}
+                      onClick={() => applyImprovement("shorten")}
+                    >
+                      Shorten
+                    </Chip>
+
+                    <Chip
+                      active={selectedImprovements.includes("story")}
+                      onClick={() => applyImprovement("story")}
+                    >
+                      Add story
+                    </Chip>
+
+                    <Chip
+                      active={selectedImprovements.includes("stats")}
+                      onClick={() => applyImprovement("stats")}
+                    >
+                      Add stats
+                    </Chip>
+
+                    <Chip
+                      active={selectedImprovements.includes("emojis")}
+                      onClick={() => applyImprovement("emojis")}
+                    >
+                      More emojis
+                    </Chip>
+                    <Chip
+                      active={selectedImprovements.includes("custom")}
+                      onClick={() => applyImprovement("custom")}
+                    >
+                      Custom
+                    </Chip>
                   </div>
 
                   <h3 className="font-semibold mb-3 text-lg flex items-center gap-2">
@@ -965,9 +1048,26 @@ const postWithFiles = async (url, payload) => {
                     Add Call-to-Action
                   </h3>
                   <div className="flex flex-wrap gap-2 mb-8">
-                    <CTA onClick={() => addCTA("question")}>Add question</CTA>
-                    <CTA onClick={() => addCTA("soft")}>Add soft CTA</CTA>
-                    <CTA onClick={() => addCTA("strong")}>Add strong CTA</CTA>
+                    <CTA
+                      active={selectedCTAs.includes("question")}
+                      onClick={() => addCTA("question")}
+                    >
+                      Add question
+                    </CTA>
+
+                    <CTA
+                      active={selectedCTAs.includes("soft")}
+                      onClick={() => addCTA("soft")}
+                    >
+                      Add soft CTA
+                    </CTA>
+
+                    <CTA
+                      active={selectedCTAs.includes("strong")}
+                      onClick={() => addCTA("strong")}
+                    >
+                      Add strong CTA
+                    </CTA>
                   </div>
 
                   {/* Optimization Insights */}
@@ -994,19 +1094,7 @@ const postWithFiles = async (url, payload) => {
                           <Score blue title="Engagement" value="87/100" />
                         </div>
 
-                        <div>
-                          <h4 className="font-semibold mb-3 flex items-center gap-2 text-sm">
-                            <FaHashtag className="text-blue-500" />
-                            Suggested Hashtags
-                          </h4>
-                          <div className="flex flex-wrap gap-2">
-                            {hashtags.map((tag) => (
-                              <Chip key={tag} onClick={() => addHashtag(tag)}>
-                                {tag}
-                              </Chip>
-                            ))}
-                          </div>
-                        </div>
+
                       </div>
                     )}
                   </div>
@@ -1167,29 +1255,34 @@ const Header = ({ title, actions }) => (
 const CardSelect = ({ active, children, className = "", ...props }) => (
   <button
     {...props}
-    className={`border-2 rounded-xl p-4 text-center transition-all w-full ${className} ${
-      active
-        ? "border-cyan-400 bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 shadow-sm"
-        : "border-gray-200 hover:border-gray-300"
-    }`}
+    className={`border-2 rounded-xl p-4 text-center transition-all w-full ${className} ${active
+      ? "border-cyan-400 bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 shadow-sm"
+      : "border-gray-200 hover:border-gray-300"
+      }`}
   >
     {children}
   </button>
 );
 
-const Chip = ({ children, ...props }) => (
+const Chip = ({ children, active, ...props }) => (
   <button
     {...props}
-    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium transition-colors"
+    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${active
+      ? "bg-cyan-500 text-white"
+      : "bg-gray-100 hover:bg-gray-200"
+      }`}
   >
     {children}
   </button>
 );
 
-const CTA = ({ children, ...props }) => (
+const CTA = ({ children, active, ...props }) => (
   <button
     {...props}
-    className="px-4 py-2 border border-cyan-400 text-cyan-600 hover:bg-cyan-50 rounded-full text-sm font-medium transition-colors"
+    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${active
+      ? "bg-cyan-500 text-white border border-cyan-500"
+      : "border border-cyan-400 text-cyan-600 hover:bg-cyan-50"
+      }`}
   >
     {children}
   </button>
@@ -1199,15 +1292,13 @@ const GradientBtn = ({ green, blue, children, disabled, icon, ...props }) => (
   <button
     {...props}
     disabled={disabled}
-    className={`flex-1 py-4 rounded-xl font-semibold text-white flex items-center justify-center gap-3 transition-all ${
-      disabled
-        ? "opacity-70 cursor-not-allowed"
-        : "hover:shadow-lg transform hover:-translate-y-0.5"
-    } ${
-      green
+    className={`flex-1 py-4 rounded-xl font-semibold text-white flex items-center justify-center gap-3 transition-all ${disabled
+      ? "opacity-70 cursor-not-allowed"
+      : "hover:shadow-lg transform hover:-translate-y-0.5"
+      } ${green
         ? "bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700"
         : "bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600"
-    }`}
+      }`}
   >
     {icon}
     {children}
@@ -1216,11 +1307,10 @@ const GradientBtn = ({ green, blue, children, disabled, icon, ...props }) => (
 
 const Score = ({ title, value, green, blue }) => (
   <div
-    className={`rounded-xl p-4 border ${
-      green
-        ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800"
-        : "bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-800"
-    }`}
+    className={`rounded-xl p-4 border ${green
+      ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800"
+      : "bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-800"
+      }`}
   >
     <p className="font-semibold text-sm mb-2">{title}</p>
     <p className="text-3xl font-bold">{value}</p>
