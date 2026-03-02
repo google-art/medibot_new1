@@ -243,6 +243,8 @@ export default function Consultation() {
 
   // UI bits
   const [isCopied, setIsCopied] = useState(false);
+  const [isSavingReport, setIsSavingReport] = useState(false);
+  const [toast, setToast] = useState(null);
 
   // History UI (disabled for existing consultation)
   const [showHistory, setShowHistory] = useState(false);
@@ -440,57 +442,63 @@ export default function Consultation() {
     return lines.join("\n");
   };
 
-  const handleSaveAndSend = async () => {
-    if (!filled) return;
+const handleSaveAndSend = async () => {
+  if (!filled || isSavingReport) return;
 
-    try {
-      const formData = new FormData();
+  try {
+    setIsSavingReport(true);
 
-      // 🔹 Append medical report details
-      formData.append("patientId", patientId);
-      formData.append("patientName", patientName);
-      formData.append("patientEmail", patientEmail);
-      formData.append("patientPhone", patientPhone);
-      formData.append("height", vitals.height || "");
-      formData.append("weight", vitals.weight || "");
-      formData.append("bp", vitals.bp || "");
-      formData.append("temp", vitals.temp || "");
-      formData.append("pulse", vitals.pulse || "");
+    const formData = new FormData();
 
-      formData.append("diagnosis", report?.diagnosis || "");
-      formData.append("medication", report?.medication || "");
-      formData.append("symptoms", report?.symptoms || "");
-      formData.append("notes", report?.notes || "");
-      formData.append("followup", report?.followup || "");
+    formData.append("patientId", patientId);
+    formData.append("patientName", patientName);
+    formData.append("patientEmail", patientEmail);
+    formData.append("patientPhone", patientPhone);
+    formData.append("height", vitals.height || "");
+    formData.append("weight", vitals.weight || "");
+    formData.append("bp", vitals.bp || "");
+    formData.append("temp", vitals.temp || "");
+    formData.append("pulse", vitals.pulse || "");
 
-      // 🔹 Append uploaded file (binary)
-      // 🔹 Append uploaded file (binary)
-      if (uploadedFile) {
-        formData.append("reportFile", uploadedFile);
-      }
+    formData.append("diagnosis", report?.diagnosis || "");
+    formData.append("medication", report?.medication || "");
+    formData.append("symptoms", report?.symptoms || "");
+    formData.append("notes", report?.notes || "");
+    formData.append("followup", report?.followup || "");
 
-      const res = await fetch(
-        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/patient_details_save_and_send",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error("Webhook failed");
-      }
-
-      alert("Medical report sent successfully!");
-      openWhatsApp(buildShareText());
-
-    } catch (err) {
-      console.error("❌ Save failed:", err);
-      alert("Save failed");
+    if (uploadedFile) {
+      formData.append("reportFile", uploadedFile);
     }
-  };
 
+    const res = await fetch(
+      "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/patient_details_save_and_send",
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
 
+    if (!res.ok) throw new Error("Webhook failed");
+
+    setToast({
+      type: "success",
+      message: "Medical report sent successfully!",
+    });
+
+    openWhatsApp(buildShareText());
+
+  } catch (err) {
+    console.error("❌ Save failed:", err);
+
+    setToast({
+      type: "error",
+      message: "Failed to send medical report.",
+    });
+
+  } finally {
+    setIsSavingReport(false);
+  }
+};
 
   // ✅ Keep mock consultations only for NON-existing flow (optional)
   const consultations = useMemo(
@@ -1029,9 +1037,37 @@ export default function Consultation() {
 
 
               <div className="mt-5 flex justify-end">
-                <PrimaryButton onClick={handleSaveAndSend} disabled={!filled}>
-                  SAVE & SEND (Email)
-                </PrimaryButton>
+                <PrimaryButton
+  onClick={handleSaveAndSend}
+  disabled={!filled || isSavingReport}
+>
+  {isSavingReport ? (
+    <>
+      <svg
+        className="animate-spin h-4 w-4"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          className="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="black"
+          strokeWidth="4"
+          fill="none"
+        />
+        <path
+          className="opacity-75"
+          fill="black"
+          d="M4 12a8 8 0 018-8v4l3-3-3-3v4A12 12 0 000 12h4z"
+        />
+      </svg>
+      SENDING...
+    </>
+  ) : (
+    "SAVE & SEND (Email)"
+  )}
+</PrimaryButton>
               </div>
             </Card>
           </div>
@@ -1041,6 +1077,20 @@ export default function Consultation() {
             If you still want it for NEW consultations only, you can re-add it with:
             {!isExistingConsultation && (...)}  */}
       </main >
+       {/* 🔔 TOAST — ADD THIS HERE */}
+      {toast && (
+        <div className="fixed top-6 right-6 z-50">
+          <div
+            className={`min-w-[260px] px-6 py-3 rounded-md border-2 font-semibold text-sm shadow-xl
+            ${toast.type === "success"
+              ? "bg-[#EFFFF5] border-[#00C950]"
+              : "bg-[#FFEAEA] border-[#FF4D4D]"
+            }`}
+          >
+            {toast.message}
+          </div>
+        </div>
+      )}
 
       {/* ✅ HISTORY MODAL only for NON-existing consultations */}
       {

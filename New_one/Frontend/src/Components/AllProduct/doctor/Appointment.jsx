@@ -2120,6 +2120,7 @@ export default function Appointment() {
     new Date(today.getFullYear(), today.getMonth(), 1)
   );
   const [toast, setToast] = useState(null);
+  const [isSavingWeek, setIsSavingWeek] = useState(false);
   // toast = { type: "success" | "error", message: "text" }
   useEffect(() => {
     if (!toast) return;
@@ -2301,6 +2302,8 @@ export default function Appointment() {
 
   const applyWeekToDates = async () => {
     try {
+      setIsSavingWeek(true); // 🔥 START LOADER
+
       setHoursByDate((prev) => {
         const next = { ...prev };
         for (let i = 0; i < 7; i++) {
@@ -2314,8 +2317,6 @@ export default function Appointment() {
         return next;
       });
 
-      // ✅ Return to TODAY instead of Monday
-      setSelectedKey(toKey(new Date()));
       const payload = {
         weekStart: toDDMMYYYY(weekDates[0]),
         weekEnd: toDDMMYYYY(weekDates[6]),
@@ -2347,7 +2348,6 @@ export default function Appointment() {
       if (!response.ok) throw new Error("Backend error");
 
       const data = await response.json();
-
       if (!data?.success) throw new Error("n8n webhook failed");
 
       setToast({
@@ -2362,9 +2362,10 @@ export default function Appointment() {
         type: "error",
         message: "n8n webhook not responding!",
       });
+    } finally {
+      setIsSavingWeek(false); // 🔥 STOP LOADER
     }
   };
-
   const dayHours = useMemo(
     () =>
       hoursByDate[selectedKey] || {
@@ -2607,12 +2608,8 @@ export default function Appointment() {
             </p>
           </div>
 
-          {/* RIGHT SIDE (Toggle + Toast) */}
-          <div className="flex flex-col items-end gap-2">
-            <TopToggle />
 
-            
-          </div>
+
         </div>
 
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2694,9 +2691,41 @@ export default function Appointment() {
                     Slots auto-generate every <b>15 minutes</b> inside each range.
                   </div>
 
-                  <Button onClick={applyWeekToDates} className="bg-[#00B8DB] text-black">
-                    <FiCheck />
-                    APPLY TO THIS WEEK
+                  <Button
+                    onClick={applyWeekToDates}
+                    disabled={isSavingWeek}
+                    className={`bg-[#00B8DB] text-black ${isSavingWeek ? "opacity-60 cursor-not-allowed" : ""
+                      }`}
+                  >
+                    {isSavingWeek ? (
+                      <>
+                        <svg
+                          className="animate-spin h-4 w-4"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="black"
+                            strokeWidth="4"
+                            fill="none"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="black"
+                            d="M4 12a8 8 0 018-8v4l3-3-3-3v4A12 12 0 000 12h4z"
+                          />
+                        </svg>
+                        SAVING...
+                      </>
+                    ) : (
+                      <>
+                        <FiCheck />
+                        APPLY TO THIS WEEK
+                      </>
+                    )}
                   </Button>
                 </div>
 

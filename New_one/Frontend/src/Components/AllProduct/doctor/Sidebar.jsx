@@ -233,14 +233,25 @@ export default function Sidebar() {
   const [doctor, setDoctor] = useState(null);
   const [photo, setPhoto] = useState("");
 
-  useEffect(() => {
+useEffect(() => {
+  const loadProfile = () => {
     const savedDoctor = localStorage.getItem("doctorSettings");
     const savedPhoto = localStorage.getItem("profilePhoto");
 
     if (savedDoctor) setDoctor(JSON.parse(savedDoctor));
     if (savedPhoto) setPhoto(savedPhoto);
-  }, []);
+  };
 
+  // Load initially
+  loadProfile();
+
+  // 🔥 Listen for update event
+  window.addEventListener("profileUpdated", loadProfile);
+
+  return () => {
+    window.removeEventListener("profileUpdated", loadProfile);
+  };
+}, []);
   const items = useMemo(
     () => [
       { path: `${DOCTOR_BASE}/dashboard`, label: "Dashboard", icon: FiGrid },

@@ -657,15 +657,13 @@ export default function Patients() {
       const data = await response.json();
 
       const formattedPatients = data.map((item) => ({
-        id: item.Patient_id,
-        name: item.Patient_name,
-        age: item.Age,
-        phone: item["phone_number "]?.toString() || "",
-        email: item["email_id "] || "",
-        location: item.location,
-
-      }));
-
+  id: item["Patient id "]?.trim() || "",
+  name: item["Patient_name"]?.trim() || "",
+  age: item["Age "] || "",
+  phone: item["phone_number"]?.toString() || "",
+  email: item["email_id"] || "",
+  location: item["location"] || "",
+}));
       setPatients(formattedPatients);
 
     } catch (err) {
@@ -719,21 +717,21 @@ export default function Patients() {
 
       // existing selected patient logic
       const formattedReports = data.map((item, index) => ({
-        reportId: `R${index + 1}`,
-        patientId: item.Patient_id,
-        type: "report",
-        title: "Medical Report",
-        date: new Date().toLocaleDateString(),
-        time: new Date().toLocaleTimeString(),
-        vitals: {
-          height: item.Height ? `${item.Height} cm` : "-",
-          weight: item.Wieght ? `${item.Wieght} kg` : "-",
-          bp: item.Blood_pressure ? `${item.Blood_pressure}` : "-",
-        },
-        medication: item.Meditation || "-",
-        symptoms: item.Symptoms || "-",
-        doctorNotes: item["Doctor Notes"] || "-",
-      }));
+  reportId: `R${index + 1}`,
+  patientId: item.PatientId,   // ✅ correct
+  type: "report",
+  title: "Medical Report",
+  date: new Date().toLocaleDateString(),
+  time: new Date().toLocaleTimeString(),
+  vitals: {
+    height: item.Height ? `${item.Height} cm` : "-",
+    weight: item.Weight ? `${item.Weight} kg` : "-",
+    bp: item.BP ? `${item.BP}` : "-",
+  },
+  medication: item.Medication || "-",   // ✅ correct
+  symptoms: item.Symptoms || "-",
+  doctorNotes: item.Notes || "-",       // ✅ correct
+}));
 
       setReportHistory(formattedReports);
 

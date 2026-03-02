@@ -44,17 +44,20 @@ export default function SocialMedia() {
       generate:
         "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/linkedin-post-agent_prod_dev",
       action: "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/okdecision",
+      change: "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/changedata"
     },
     article: {
       generate: "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/article",
       action:
         "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/articleokdecision",
+      change: "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/change_article"
     },
     image: {
       generate:
         "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/image-create",
       action:
         "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/imageokdecision",
+      change: "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/image-change"
     },
     video: {
       generate:
@@ -72,6 +75,7 @@ export default function SocialMedia() {
   const [videoDuration, setVideoDuration] = useState(30);
 
   const [generatedPost, setGeneratedPost] = useState("");
+  const [generatedImage, setGeneratedImage] = useState(null);
   const [uploadedMedia, setUploadedMedia] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -86,6 +90,10 @@ export default function SocialMedia() {
   const [popupOpen, setPopupOpen] = useState(null);
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleTime, setScheduleTime] = useState("");
+  const [readabilityScore, setReadabilityScore] = useState(null);
+  const [engagementScore, setEngagementScore] = useState(null);
+  const [hashtags, setHashtags] = useState([]);
+  const [originalPost, setOriginalPost] = useState("");
 
   const fileInputRef = useRef(null);
   const contentRef = useRef(null);
@@ -231,36 +239,49 @@ export default function SocialMedia() {
   const postWithFiles = async (url, payload) => {
     const formData = new FormData();
 
-    // Append normal fields
     Object.entries(payload).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
-        formData.append(key, typeof value === "object"
-          ? JSON.stringify(value)
-          : value
+        formData.append(
+          key,
+          typeof value === "object" ? JSON.stringify(value) : value
         );
       }
     });
 
-    // Append files as binary
-    uploadedMedia.forEach((media, index) => {
-      formData.append("files", media.file); // IMPORTANT
+    uploadedMedia.forEach((media) => {
+      formData.append("files", media.file);
     });
 
     const res = await fetch(url, {
       method: "POST",
-      body: formData, // NO headers here!
+      body: formData,
     });
 
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
 
-    return await res.text();
+    // 🔥 DETECT IMAGE RESPONSE
+    const contentType = res.headers.get("content-type");
+
+    if (contentType && contentType.includes("image")) {
+      return await res.blob();
+    }
+
+    return await res.json();
   };
 
   // ✅ GENERATE webhook (per postType)
-  const sendGenerateWebhook = async (postContent) => {
+  const sendGenerateWebhook = async () => {
     try {
+
+      // 🔥 RESET OLD CONTENT BEFORE NEW GENERATION
+      setGeneratedImage(null);
+      setGeneratedPost("");
+      setHashtags([]);
+      setReadabilityScore(null);
+      setEngagementScore(null);
+
       const { generate } = getWebhookUrls();
 
       const payload = {
@@ -270,111 +291,220 @@ export default function SocialMedia() {
         contentIdea,
         targetAudience: audience,
         emojiIntensity,
-        generatedPost: postContent,
         videoDuration: postType === "video" ? videoDuration : undefined,
-        referenceMedia: uploadedMedia.map((media) => ({
-          name: media.name,
-          type: media.type,
-          size: media.size,
-        })),
+        uploadSelection:
+          uploadMode === "optional"
+            ? "Optional Upload"
+            : "Direct Upload",
         timestamp: new Date().toISOString(),
       };
 
-      await postWithFiles(generate, payload);
-      console.log("✅ Generate webhook sent:", postType);
+      const response = await postWithFiles(generate, payload);
+
+      // 🔥 IMAGE HANDLING
+      if (postType === "image") {
+
+        // Case 1: Raw image (blob)
+        if (response instanceof Blob) {
+          const imageUrl = URL.createObjectURL(response);
+          setGeneratedImage(imageUrl);
+          return;
+        }
+
+        // Case 2: JSON with image URL
+        if (Array.isArray(response) && response.length > 0) {
+          const data = response[0].json || response[0];
+
+          if (data.url) {
+            setGeneratedImage(data.url);
+            setHashtags(data.hashtags || []);
+            setReadabilityScore(
+              data.readability ?? data.readabilityScore ?? null
+            );
+
+            setEngagementScore(
+              data.engagement ?? data.engagementScore ?? null
+            );
+            return;
+          }
+        }
+      }
+
+      // 🔥 TEXT / ARTICLE HANDLING
+      if (Array.isArray(response) && response.length > 0) {
+        const data = response[0].json || response[0];
+
+        setOriginalPost(data.postContent || "");
+        setGeneratedPost(data.postContent || "");
+        setHashtags(data.hashtags || []);
+        setReadabilityScore(
+          data.readability ?? data.readabilityScore ?? null
+        );
+
+        setEngagementScore(
+          data.engagement ?? data.engagementScore ?? null
+        );
+        setSelectedImprovements([]);
+        setSelectedCTAs([]);
+      }
+
     } catch (err) {
       console.error("❌ Generate webhook error:", err);
     }
   };
 
   // ✅ ACTION webhook (per postType)
-  const sendActionWebhook = async ({
+  // ✅ ACTION webhook (per postType)
+const sendActionWebhook = async ({
+  actionType,
+  scheduledDateTime = null,
+  postContent = generatedPost,
+}) => {
+  const { action } = getWebhookUrls();
+
+  const now = new Date();
+
+// Convert to IST using Intl (safe way)
+const istString = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Asia/Kolkata",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+}).format(now);
+
+// Format to ISO style +05:30
+const clickTimestamp = istString.replace(" ", "T") + "+05:30";
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const payload = {
+    eventType: "post_action",
+
     actionType, // post_now | schedule
-    scheduledDateTime = null,
-    postContent = generatedPost,
-  }) => {
-    const { action } = getWebhookUrls();
 
-    const payload = {
-      actionType,
-      platform,
-      postType,
-      contentIdea,
-      targetAudience: audience,
-      emojiIntensity,
-      generatedPost: postContent,
-      videoDuration: postType === "video" ? videoDuration : undefined,
-      referenceMedia: uploadedMedia.map((media) => ({
-        name: media.name,
-        type: media.type,
-        size: media.size,
-      })),
-      createdAt: new Date().toISOString(),
-      scheduledDateTime,
-    };
+    platform,
+    postType,
+    contentIdea,
+    targetAudience: audience,
+    emojiIntensity,
 
-    // Important: if this fails with "Failed to fetch", it's almost always CORS/network.
-    // Use proxy/backend if needed.
-    return await postWithFiles(action, payload);
+    // 📝 CONTENT
+    originalPost,
+    generatedPost: postType !== "image" ? postContent : null,
+    generatedImage: postType === "image" ? generatedImage : null,
+    hashtags,
+
+    // 📊 OPTIMIZATION
+    readabilityScore,
+    engagementScore,
+    selectedImprovements,
+    selectedCTAs,
+
+    // 📂 MEDIA
+    uploadMode,
+    referenceMedia: uploadedMedia.map((media) => ({
+      name: media.name,
+      type: media.type,
+      size: media.size,
+    })),
+
+    // 🎥 VIDEO
+    videoDuration: postType === "video" ? videoDuration : null,
+
+    // ⏰ TIME DATA
+    clickTimestamp,
+    scheduledDateTime,
+    userTimezone,
+
+    createdAt: clickTimestamp,
   };
 
-  const buildPost = () => {
+  console.log("🚀 Sending action payload:", payload);
+
+  return await postWithFiles(action, payload);
+};
+  // ✅ CHANGE webhook (must be OUTSIDE sendActionWebhook)
+  const sendChangeWebhook = async () => {
+    try {
+      const { change } = getWebhookUrls();
+
+      const payload = {
+        eventType: "change_clicked",
+        platform,
+        postType,
+        targetAudience: audience,
+        emojiIntensity,
+        contentIdea,
+
+        // 🔥 TEXT (if exists)
+        generatedPost: generatedPost || null,
+
+        // 🔥 IMAGE (IMPORTANT)
+        generatedImage: generatedImage || null,
+
+        selectedImprovements,
+        selectedCTAs,
+        readabilityScore,
+        engagementScore,
+        uploadMode,
+
+        referenceMedia: uploadedMedia.map((media) => ({
+          name: media.name,
+          type: media.type,
+          size: media.size,
+        })),
+
+        timestamp: new Date().toISOString(),
+      };
+      const response = await postWithFiles(change, payload);
+
+      // ✅ IMPORTANT: Update UI from webhook response
+      // ✅ IMPORTANT: Update UI from webhook response
+      if (Array.isArray(response) && response.length > 0) {
+        const data = response[0].json || response[0];
+
+        // 🔥 IF IMAGE TYPE
+        if (postType === "image") {
+          if (data.url) {
+            setGeneratedImage(data.url);
+          }
+
+          setHashtags(data.hashtags || []);
+          setReadabilityScore(
+            data.readability ?? data.readabilityScore ?? null
+          );
+          setEngagementScore(
+            data.engagement ?? data.engagementScore ?? null
+          );
+
+          return; // stop here for image
+        }
+
+        // 🔥 TEXT / ARTICLE TYPE
+        setOriginalPost(data.postContent || "");
+        setGeneratedPost(data.postContent || "");
+        setHashtags(data.hashtags || []);
+        setReadabilityScore(
+          data.readability ?? data.readabilityScore ?? null
+        );
+        setEngagementScore(
+          data.engagement ?? data.engagementScore ?? null
+        );
+      }
+
+      console.log("✅ Change webhook response applied");
+    } catch (err) {
+      console.error("❌ Change webhook error:", err);
+    }
+  };
+  const buildPost = async () => {
     setIsGenerating(true);
-
-    setTimeout(() => {
-      const emojis =
-        emojiLevels.find((level) => level.name === emojiIntensity)?.emojis || "";
-      let post = "";
-
-      // Add media information
-      if (uploadedMedia.length > 0) {
-        const images = uploadedMedia.filter((m) => m.type.startsWith("image"));
-        const videos = uploadedMedia.filter((m) => m.type.startsWith("video"));
-
-        if (images.length > 0) {
-          post += `📸 Images Attached: ${images.length} image${images.length > 1 ? "s" : ""
-            }\n\n`;
-        }
-        if (videos.length > 0) {
-          post += `🎥 Videos Attached: ${videos.length} video${videos.length > 1 ? "s" : ""
-            }\n\n`;
-        }
-      }
-
-      // Build post content based on type
-      if (postType === "text") {
-        post += `Here's what I've learned:\n\n→ ${contentIdea}\n→ Focus on solving real problems\n→ Consistency beats perfection\n\nThe secret? Invisible work compounds.\n\n${emojis}`;
-      } else if (postType === "video") {
-        post += `🎥 Video Script (${videoDuration}s)\n\nHook: Ever faced this?\n\n${contentIdea}\n\nCTA: Follow for more!\n\n${emojis}`;
-      } else if (postType === "image") {
-        post += `🖼 Poster Caption:\n\n${contentIdea}\n\n${emojis}`;
-      } else if (postType === "article") {
-        post += `📖 Article Outline\n\n${contentIdea}\n\n1. Problem\n2. Experience\n3. Lessons\n4. Takeaway\n\n${emojis}`;
-      }
-
-      // Add media details
-      if (uploadedMedia.length > 0) {
-        post += `\n\n📎 Media included:`;
-        uploadedMedia.forEach((media, index) => {
-          if (media.type.startsWith("image"))
-            post += `\n   • Image ${index + 1}: ${media.name}`;
-          else if (media.type.startsWith("video"))
-            post += `\n   • Video ${index + 1}: ${media.name}`;
-          else post += `\n   • File ${index + 1}: ${media.name}`;
-        });
-      }
-
-      // Add platform context
-      post += `\n\n#${platform.replace(/\s+/g, "")} #SocialMedia #ContentCreation`;
-
-      setGeneratedPost(post);
-      setIsGenerating(false);
-
-      // ✅ Send generate webhook based on selected postType
-      void sendGenerateWebhook(post);
-    }, 600);
+    await sendGenerateWebhook();   // Get content from webhook
+    setIsGenerating(false);
   };
-
   const copyPost = () => {
     navigator.clipboard.writeText(generatedPost);
     setCopied(true);
@@ -430,7 +560,7 @@ export default function SocialMedia() {
     }
 
     setGeneratedPost(next);
-    void sendGenerateWebhook(next);
+
   };
 
   const addCTA = (type) => {
@@ -460,13 +590,13 @@ export default function SocialMedia() {
     }
 
     setGeneratedPost(next);
-    void sendGenerateWebhook(next);
+
   };
   const addHashtag = (tag) => {
     if (!generatedPost.includes(tag)) {
       const next = generatedPost + "\n" + tag;
       setGeneratedPost(next);
-      void sendGenerateWebhook(next);
+
     }
   };
 
@@ -539,13 +669,7 @@ export default function SocialMedia() {
   };
 
   // Auto-generate post when relevant fields change
-  useEffect(() => {
-    if (!contentIdea.trim()) return;
-    const timer = setTimeout(() => {
-      buildPost();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [platform, postType, emojiIntensity, audience, contentIdea, videoDuration, uploadedMedia]);
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
@@ -876,7 +1000,33 @@ export default function SocialMedia() {
                 ref={contentRef}
                 className="p-6 h-80 overflow-y-auto whitespace-pre-line bg-gray-50 rounded-b-2xl scrollbar-hide"
               >
-                {generatedPost ? (
+                {generatedImage ? (
+                  <div className="space-y-4">
+                    <div className="flex justify-center items-center">
+                      <img
+                        src={generatedImage}
+                        alt="Generated"
+                        className="max-h-72 rounded-xl shadow-md"
+                      />
+                    </div>
+
+                    {/* ✅ SHOW HASHTAGS FOR IMAGE */}
+                    {hashtags.length > 0 && (
+                      <div className="pt-4 border-t border-gray-200">
+                        <div className="flex flex-wrap gap-2">
+                          {hashtags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="text-blue-600 text-sm font-medium"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : generatedPost ? (
                   <div className="space-y-4">
                     {/* Media Preview */}
                     {uploadedMedia.length > 0 && (
@@ -936,6 +1086,22 @@ export default function SocialMedia() {
                     <div className="text-gray-800 leading-relaxed font-sans whitespace-pre-line">
                       {generatedPost}
                     </div>
+
+                    {/* Hashtags */}
+                    {hashtags.length > 0 && (
+                      <div className="pt-4 border-t border-gray-200">
+                        <div className="flex flex-wrap gap-2">
+                          {hashtags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="text-blue-600 text-sm font-medium"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-gray-400">
@@ -952,7 +1118,7 @@ export default function SocialMedia() {
             </Card>
 
             {/* Post Action Buttons */}
-            {generatedPost && (
+            {(generatedPost || generatedImage) && (
               <div className="flex gap-4">
                 <GradientBtn
                   green
@@ -974,25 +1140,27 @@ export default function SocialMedia() {
             )}
 
             {/* Improvements Section */}
-            {generatedPost && (
+            {(generatedPost || generatedImage) && (
               <Card>
                 <div className="p-6">
-                 <div className="flex items-center justify-between mb-4">
-  <h3 className="font-semibold text-lg flex items-center gap-2">
-    <FiZap className="text-amber-500" />
-    Add Improvements
-  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-lg flex items-center gap-2">
+                      <FiZap className="text-amber-500" />
+                      Add Improvements
+                    </h3>
 
-  <button
-    onClick={() => {
-      setSelectedImprovements([]);
-      buildPost(); // reset to fresh generated post
-    }}
-    className="text-sm px-3 py-1 rounded-lg border border-cyan-300 text-cyan-600 hover:bg-cyan-50 transition"
-  >
-    Change
-  </button>
-</div>
+                    <button
+
+                      onClick={async () => {
+                        await sendChangeWebhook();
+                        setSelectedImprovements([]);
+                        setSelectedCTAs([]);
+                      }}
+                      className="text-sm px-3 py-1 rounded-lg border border-cyan-300 text-cyan-600 hover:bg-cyan-50 transition"
+                    >
+                      Change
+                    </button>
+                  </div>
                   <div className="flex flex-wrap gap-2 mb-6">
                     <Chip
                       active={selectedImprovements.includes("personal")}
@@ -1090,8 +1258,17 @@ export default function SocialMedia() {
                     {showOptimization && (
                       <div className="space-y-6 animate-slideDown">
                         <div className="grid grid-cols-2 gap-4">
-                          <Score green title="Readability" value="92/100" />
-                          <Score blue title="Engagement" value="87/100" />
+                          <Score
+                            green
+                            title="Readability"
+                            value={readabilityScore !== null ? `${readabilityScore}/100` : "--/100"}
+                          />
+
+                          <Score
+                            blue
+                            title="Engagement"
+                            value={engagementScore !== null ? `${engagementScore}/100` : "--/100"}
+                          />
                         </div>
 
 

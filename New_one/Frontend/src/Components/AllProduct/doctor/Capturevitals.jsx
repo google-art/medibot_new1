@@ -708,13 +708,15 @@ export default function CaptureVitals() {
       } else {
         const data = response[0];
 
-        setPatientName(data.Patient_name || "");
-        setContact({
-          age: data.Age || "",
-          location: data.location || "",
-          email: data["email_id "] || "",
-          phone: data["phone_number "] || "",
-        });
+// 🔥 CLEAN + SAFE MAPPING
+setPatientName(data["Patient_name"]?.trim() || "");
+
+setContact({
+  age: data["Age "] || data["Age"] || "",
+  location: data["location"] || "",
+  email: data["email_id"] || "",
+  phone: data["phone_number"] || "",
+});
       }
 
     } catch (err) {
