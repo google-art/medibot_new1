@@ -605,9 +605,10 @@ const getCurrencySymbol = (currency) => {
 
 const PAYMENT_METHODS = ["Cash", "UPI", "Card", "Net Banking", "Paytm", "PhonePe"];
 
-const STORE_URL = "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/billing-summary/store";
+const STORE_URL = "http://localhost:3001/api/medibot/billing-summary-store";
+const GET_URL = "http://localhost:3001/api/medibot/billing-summary-get";
 
-const GET_URL = "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/billing-summary/get";
+
 
 /* ---------- UI ---------- */
 
@@ -903,18 +904,125 @@ const RecordCard = ({
 /* ---------- Page ---------- */
 
 const Billing = () => {
-  const [records, setRecords] = useState([
-    { id: "P001", name: "Rajesh Kumar", date: "2/2/2026", time: "03:52 PM", status: "pending", fee: 200, note: "" },
-    { id: "P002", name: "Priya Sharma", date: "2/3/2026", time: "03:52 PM", status: "paid", fee: 200, note: "Paid on 2/4/2026 via UPI" },
-    { id: "P003", name: "Amit Patel", date: "2/4/2026", time: "03:52 PM", status: "pending", fee: 250, note: "" },
-    { id: "P004", name: "Sneha Reddy", date: "1/28/2026", time: "03:52 PM", status: "overdue", fee: 200, note: "Due since 1/28/2026" },
-    { id: "P005", name: "Vikram Singh", date: "1/31/2026", time: "03:52 PM", status: "paid", fee: 200, note: "Paid on 2/1/2026 via Cash" },
-  ]);
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("billing_records");
+
+    if (saved) {
+      setRecords(JSON.parse(saved));
+      setLoading(false);
+    }
+  }, []);
+
+
+  const fetchBillingDetails = async () => {
+    try {
+      setLoading(true);
+      setFetchError(null);
+
+      const res = await fetch(
+        "http://localhost:3001/api/medibot/BillingDetails"
+      );
+
+      const json = await res.json();
+
+      console.log("Billing data:", json);
+
+      // ✅ FIX — force array
+      let data = [];
+
+      if (Array.isArray(json)) {
+        data = json;
+      } else if (json.data) {
+        data = json.data;
+      } else if (json.body) {
+        data = json.body;
+      } else {
+        data = [json];   // ✅ IMPORTANT FIX
+      }
+
+      console.log("DATA ARRAY:", data);
+
+      const formatted = data.map((item) => ({
+        id: item.PatientId || "",
+        name: item.Patient_Name || "",
+
+        date: getCurrentDate(),
+        time: getCurrentTime(),
+
+        fee: appBillingSettings.defaultFee || 200,
+        status: "pending",
+        note: "",
+      }));
+
+      console.log("FORMATTED:", formatted);
+
+      setRecords((prev) => {
+
+        const merged = [...prev];
+
+        formatted.forEach((newRec) => {
+          const exists = merged.find((r) => r.id === newRec.id);
+
+          if (!exists) {
+            merged.push(newRec);
+          }
+        });
+
+        return merged;
+      });
+
+    } catch (err) {
+      console.error(err);
+      setFetchError("Failed to load payment records");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "—";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d)) return dateStr;
+      return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getCurrentDate = () => {
+    const d = new Date();
+    return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  };
+
+  const getCurrentTime = () => {
+    const d = new Date();
+    return d.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const normalizeStatus = (s) => {
+    if (!s) return "pending";
+    const lower = String(s).toLowerCase();
+    if (lower.includes("paid") || lower === "completed") return "paid";
+    if (lower.includes("over") || lower.includes("late")) return "overdue";
+    return "pending";
+  };
 
   const [appBillingSettings, setAppBillingSettings] = useState({
     defaultFee: 200,
     currency: "Indian Rupee (INR)",
   });
+
+
+
 
   useEffect(() => {
     const saved = localStorage.getItem("billingSettings");
@@ -943,8 +1051,15 @@ const Billing = () => {
 
   const fetchBillingSummary = async () => {
     try {
-      const res = await fetch(GET_URL);
-      const data = await res.json();
+      const res = await fetch(GET_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      const data = json.data;
 
       if (!data?.length) return;
 
@@ -1081,10 +1196,21 @@ const Billing = () => {
     );
   }, [records]);
 
+
+
   useEffect(() => {
-    fetchBillingSummary();   // GET from sheet
-    autoSaveDailySummary();  // POST daily save
-  }, []); // run only once when page loads
+    fetchBillingDetails();
+    fetchBillingSummary();
+    autoSaveDailySummary();
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "billing_records",
+      JSON.stringify(records)
+    );
+  }, [records]);
+  // run only once when page loads
   // ✅ patient summary (counts)
 
   const patientSummary = useMemo(() => {
@@ -1097,11 +1223,38 @@ const Billing = () => {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return records.filter((r) => {
-      const matchesQ = !q || r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q);
-      const matchesStatus = status === "all" ? true : r.status === status;
+
+    const statusOrder = {
+      pending: 1,
+      overdue: 2,
+      paid: 3,
+    };
+
+    const list = records.filter((r) => {
+      if (!r) return false;
+
+      const name = r.name || "";
+      const id = r.id || "";
+      const stat = r.status || "pending";
+
+      const matchesQ =
+        !q ||
+        name.toLowerCase().includes(q) ||
+        id.toLowerCase().includes(q);
+
+      const matchesStatus =
+        status === "all" ? true : stat === status;
+
       return matchesQ && matchesStatus;
     });
+
+    // ✅ SORT HERE
+    list.sort((a, b) => {
+      return statusOrder[a.status] - statusOrder[b.status];
+    });
+
+    return list;
+
   }, [records, query, status]);
 
   // ✅ open modal (instead of instant paid)
@@ -1112,15 +1265,46 @@ const Billing = () => {
   };
 
   // ✅ confirm paid with method; also lock editing by status=paid (handled in RecordCard)
-  const confirmMarkPaid = () => {
+  const confirmMarkPaid = async () => {
     if (!markPaidTarget) return;
+
     if (!markPaidMethod) {
       alert("Please select a payment method.");
       return;
     }
 
-    const method = markPaidMethod;
-    const today = new Date().toLocaleDateString();
+    const now = new Date();
+
+    const date = now.toLocaleDateString();
+
+    const time = now.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    try {
+      await fetch(
+        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/Confirmpaid",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            patientid: markPaidTarget.id,
+            patientname: markPaidTarget.name,
+            paymentmethod: markPaidMethod,
+            fee: currencySymbol + markPaidTarget.fee,
+            date: date,
+            time: time,
+          }),
+        }
+      );
+
+      console.log("Webhook sent");
+    } catch (err) {
+      console.error("Webhook error", err);
+    }
 
     setRecords((prev) =>
       prev.map((r) =>
@@ -1128,13 +1312,12 @@ const Billing = () => {
           ? {
             ...r,
             status: "paid",
-            note: `Paid on ${today} via ${method}`,
+            note: `Paid on ${date} ${time} via ${markPaidMethod}`,
           }
           : r
       )
     );
 
-    // close modal
     setMarkPaidOpen(false);
     setMarkPaidTarget(null);
     setMarkPaidMethod("");
@@ -1362,26 +1545,46 @@ const Billing = () => {
 
         {/* Records list */}
         <div className="mt-3 space-y-4">
-          {filtered.map((r) => (
-            <RecordCard
-              key={r.id}
-              r={r}
-              currencySymbol={currencySymbol}   // ✅ ADD THIS LINE
-              isEditing={!!editing[r.id]?.active}
-              draftFee={editing[r.id]?.draft ?? ""}
-              onStartEdit={startEdit}
-              onDraftChange={draftChange}
-              onSaveEdit={saveEdit}
-              onCancelEdit={cancelEdit}
-              onOpenMarkPaid={openMarkPaid}
-            />
-          ))}
-
-          {filtered.length === 0 ? (
-            <div className="border-2 border-black bg-white rounded-md p-6 text-sm text-black/60">
-              No records match your search/filter.
+          {loading ? (
+            <div className="border-2 border-black bg-white rounded-md p-8 text-center">
+              <div className="text-lg font-bold">Loading payment records...</div>
+              <div className="mt-2 text-black/60">Please wait</div>
             </div>
-          ) : null}
+          ) : fetchError ? (
+            <div className="border-2 border-[#FF2D2D] bg-[#FFF5F5] rounded-md p-6 text-center">
+              <div className="text-lg font-bold text-[#FF2D2D]">Error loading data</div>
+              <div className="mt-2 text-black/70">{fetchError}</div>
+              <button
+                onClick={fetchBillingDetails}
+                className="mt-4 px-5 py-2 bg-black text-white rounded font-medium"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="border-2 border-black bg-white rounded-md p-6 text-center text-black/60">
+              No payment records found
+              {query || status !== "all" ? " matching current filter" : ""}
+            </div>
+          ) : (
+            filtered.map((r) => {
+              console.log("RENDER:", r);
+              return (
+                <RecordCard
+                  key={r.id}
+                  r={r}
+                  currencySymbol={currencySymbol}
+                  isEditing={!!editing[r.id]?.active}
+                  draftFee={editing[r.id]?.draft ?? ""}
+                  onStartEdit={startEdit}
+                  onDraftChange={draftChange}
+                  onSaveEdit={saveEdit}
+                  onCancelEdit={cancelEdit}
+                  onOpenMarkPaid={openMarkPaid}
+                />
+              );
+            })
+          )}
         </div>
 
 

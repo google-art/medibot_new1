@@ -2,6 +2,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
+import { createServer } from "http";
+import { Server } from "socket.io";
+
 import drivebotRoutes from "./drivebot.js";
 import medibotRoutes from "./medibot.js";
 
@@ -47,6 +50,7 @@ app.use(
 
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true }));
+app.use("/api/medibot-test", medibotRoutes);
 
 /* =========================================================
    🏠 ROOT ROUTE
@@ -95,10 +99,27 @@ app.use((err, req, res, next) => {
 });
 
 /* =========================================================
-   🚀 START SERVER
+   🚀 START SERVER + SOCKET
 ========================================================= */
 
-app.listen(PORT, () => {
+const httpServer = createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+  },
+});
+
+io.on("connection", (socket) => {
+  console.log("🟢 Client connected:", socket.id);
+
+  socket.on("disconnect", () => {
+    console.log("🔴 Client disconnected:", socket.id);
+  });
+});
+
+httpServer.listen(PORT, () => {
   console.log(`
 🚀 AI Backend Server Started
 ────────────────────────────
@@ -107,5 +128,6 @@ app.listen(PORT, () => {
 
 🤖 DriveBot  → /api/*
 🎙️ MediBot   → /api/medibot/*
+🔌 Socket.io Ready
 `);
 });
