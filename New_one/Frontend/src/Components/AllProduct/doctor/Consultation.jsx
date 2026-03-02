@@ -232,7 +232,13 @@ export default function Consultation() {
   const [step, setStep] = useState(0);
   const [filled, setFilled] = useState(false);
   const [aiText, setAiText] = useState("");
-  const [report, setReport] = useState(null);
+  const [report, setReport] = useState({
+    patient: "",
+    medication: "",
+    symptoms: "",
+    notes: "",
+    followup: "",
+  });
 
 
   // UI bits
@@ -441,7 +447,7 @@ export default function Consultation() {
       const formData = new FormData();
 
       // 🔹 Append medical report details
-      formData.append("patientId", patientId); 
+      formData.append("patientId", patientId);
       formData.append("patientName", patientName);
       formData.append("patientEmail", patientEmail);
       formData.append("patientPhone", patientPhone);
@@ -549,47 +555,47 @@ export default function Consultation() {
       <main className="mx-auto max-w-[1100px] px-6 py-7">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
-  <div>
-    <h1 className="text-3xl font-extrabold text-black tracking-tight">
-      CONSULTATION
-    </h1>
-    <p className="text-sm text-black/55 mt-1">
-      Voice record → AI processing → Report
-    </p>
+          <div>
+            <h1 className="text-3xl font-extrabold text-black tracking-tight">
+              CONSULTATION
+            </h1>
+            <p className="text-sm text-black/55 mt-1">
+              Voice record → AI processing → Report
+            </p>
 
-    {/* ✅ Patient Info Tags */}
-    <div className="mt-3 flex flex-wrap items-center gap-2">
+            {/* ✅ Patient Info Tags */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
 
-      <Tag bg="bg-[#EAFBFF]">
-        ID: {patientId}
-      </Tag>
+              <Tag bg="bg-[#EAFBFF]">
+                ID: {patientId}
+              </Tag>
 
-      <Tag bg="bg-white">
-        <span className="inline-flex items-center gap-2">
-          <FiUser className="text-black/60" />
-          {patientName}
-        </span>
-      </Tag>
+              <Tag bg="bg-white">
+                <span className="inline-flex items-center gap-2">
+                  <FiUser className="text-black/60" />
+                  {patientName}
+                </span>
+              </Tag>
 
-      <Tag bg="bg-[#EAFBFF]">
-        BP: {vitals.bp || "—"}
-      </Tag>
+              <Tag bg="bg-[#EAFBFF]">
+                BP: {vitals.bp || "—"}
+              </Tag>
 
-      {capturedAt && (
-        <Tag bg="bg-[#EAFBFF]">
-          <span className="inline-flex items-center gap-2">
-            <FiClock className="text-black/60" />
-            {capturedAt.toLocaleDateString()}{" "}
-            {capturedAt.toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-        </Tag>
-      )}
+              {capturedAt && (
+                <Tag bg="bg-[#EAFBFF]">
+                  <span className="inline-flex items-center gap-2">
+                    <FiClock className="text-black/60" />
+                    {capturedAt.toLocaleDateString()}{" "}
+                    {capturedAt.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </Tag>
+              )}
 
-    </div>
-  </div>
+            </div>
+          </div>
 
 
 
@@ -925,27 +931,36 @@ export default function Consultation() {
               </div>
 
 
-              {/* Row 1 - 3 Columns */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Row 1 - 2 Columns */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                <div className="border-2 border-black rounded-md bg-white p-3">
+                {/* PATIENT */}
+                <div className="border-2 border-black rounded-md bg-[#F3F4F6] p-4 h-[95px] flex flex-col">
                   <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
                     PATIENT
                   </div>
-                  <div className="mt-1 text-sm text-black">
-                    {filled ? report?.patient || "—" : "—"}
-                  </div>
+
+                  <textarea
+                    value={patientName}
+                    readOnly
+                    className="mt-3 flex-1 bg-transparent border-none outline-none resize-none text-sm text-black"
+                  />
                 </div>
 
-
-
-                <div className="border-2 border-black rounded-md bg-white p-3">
+                {/* MEDICATION */}
+                <div className="border-2 border-black rounded-md bg-[#F3F4F6] p-4 h-[95px] flex flex-col">
                   <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
                     MEDICATION
                   </div>
-                  <div className="mt-1 text-sm text-black">
-                    {filled ? report?.medication : "—"}
-                  </div>
+
+                  <textarea
+                    value={report.medication}
+                    onChange={(e) =>
+                      setReport({ ...report, medication: e.target.value })
+                    }
+                    placeholder="—"
+                    className="mt-3 flex-1 bg-transparent border-none outline-none resize-none text-sm text-black"
+                  />
                 </div>
 
               </div>
@@ -954,36 +969,64 @@ export default function Consultation() {
               {/* Row 2 - 2 Columns */}
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                <div className="border-2 border-black rounded-md bg-white p-3">
+                {/* SYMPTOMS */}
+                <div className="border-2 border-black rounded-md bg-[#F3F4F6] p-4 h-[120px] flex flex-col">
                   <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
                     SYMPTOMS
                   </div>
-                  <div className="mt-1 text-sm text-black">
-                    {filled ? report?.symptoms : "—"}
-                  </div>
+
+                  <textarea
+                    value={report.symptoms}
+                    onChange={(e) =>
+                      setReport({ ...report, symptoms: e.target.value })
+                    }
+                    placeholder="—"
+                    className="mt-3 flex-1 bg-transparent border-none outline-none resize-none text-sm text-black"
+                  />
                 </div>
 
-                <div className="border-2 border-black rounded-md bg-white p-3">
+                {/* DOCTOR NOTES */}
+                <div className="border-2 border-black rounded-md bg-[#F3F4F6] p-4 h-[120px] flex flex-col">
                   <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
                     DOCTOR NOTES
                   </div>
-                  <div className="mt-1 text-sm text-black">
-                    {filled ? report?.notes : "—"}
-                  </div>
+
+                  <textarea
+                    value={report.notes}
+                    onChange={(e) =>
+                      setReport({ ...report, notes: e.target.value })
+                    }
+                    placeholder="—"
+                    className="mt-3 flex-1 bg-transparent border-none outline-none resize-none text-sm text-black"
+                  />
                 </div>
 
               </div>
 
 
               {/* Row 3 - Full Width */}
-              <div className="mt-4 border-2 border-black rounded-md bg-white p-3">
+              <div className="mt-4 border-2 border-black rounded-md bg-[#F3F4F6] p-4 h-[140px] flex flex-col">
                 <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
                   FOLLOW-UP INSTRUCTIONS
                 </div>
-                <div className="mt-1 text-sm text-black">
-                  {filled ? report?.followup : "—"}
-                </div>
+
+                <textarea
+                  value={report.followup}
+                  onChange={(e) =>
+                    setReport({ ...report, followup: e.target.value })
+
+                  }
+
+                  placeholder="—"
+                  className="mt-3 flex-1 bg-transparent border-none outline-none resize-none text-sm text-black"
+                />
               </div>
+
+
+
+
+
+
 
               <div className="mt-5 flex justify-end">
                 <PrimaryButton onClick={handleSaveAndSend} disabled={!filled}>
@@ -992,7 +1035,7 @@ export default function Consultation() {
               </div>
             </Card>
           </div>
-        </div>
+        </div >
 
         {/* ✅ REMOVED: Recent Consultations section for existing consultations
             If you still want it for NEW consultations only, you can re-add it with:

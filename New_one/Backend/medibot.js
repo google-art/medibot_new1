@@ -130,7 +130,7 @@
 import express from "express";
 console.log("✅ MEDIBOT ROUTER LOADED");
 import multer from "multer";
-import fetch from "node-fetch";
+
 import FormData from "form-data";
 
 const router = express.Router();
@@ -139,6 +139,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.get("/ping", (req, res) => {
   res.json({ message: "MediBot working" });
 });
+
+import { Server } from "socket.io";
 
 /* ---------- n8n WEBHOOKS ---------- */
 const VOICE_WEBHOOK =
@@ -158,6 +160,98 @@ const GET_PATIENT_DETAILS_WEBHOOK =
 
 const PATIENT_REPORT_WEBHOOK =
   "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/Patient_Report_patient_pannel";
+
+const BILLING_DETAILS_URL =
+  "https://dharinisrisubramanian.n8n-wsk.com/webhook/BillingDetails";
+
+
+
+router.get("/followups", async (req, res) => {
+  try {
+    console.log("🔥 /followups route HIT");
+
+    const response = await fetch(
+      "https://dharinisrisubramanian.n8n-wsk.com/webhook/Followupsdetails",
+      {
+        method: "POST",   // ⚠️ Important — most n8n webhooks expect POST
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      }
+    );
+
+    const data = await response.json();
+
+    console.log("📤 n8n response:", data);
+
+    res.json(data);
+
+  } catch (err) {
+    console.error("❌ Followups error:", err);
+    res.status(500).json({ error: "Failed to fetch followups" });
+  }
+});
+
+
+
+router.get("/BillingDetails", async (req, res) => {
+  try {
+    console.log("Calling n8n webhook...");
+
+    const response = await fetch(
+      "https://dharinisrisubramanian.n8n-wsk.com/webhook/BillingDetails"
+    );
+
+    const text = await response.text();
+
+    console.log("n8n response:", text);
+
+    res.send(text);
+
+  } catch (error) {
+    console.error("Billing error:", error);
+    res.status(500).json({ error: "Failed to fetch billing details" });
+  }
+});
+
+router.post("/billing-summary-store", async (req, res) => {
+  try {
+    const response = await fetch(
+      "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/billing-summary/store",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+      }
+    );
+
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error("store error:", err);
+    res.status(500).json({ error: "store failed" });
+  }
+});
+
+router.post("/billing-summary-get", async (req, res) => {
+  try {
+    const response = await fetch(
+      "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/billing-summary/get",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }
+    );
+
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error("get error:", err);
+    res.status(500).json({ error: "get failed" });
+  }
+});
 
 /* ---------- TEMP MEMORY DB ---------- */
 const patients = [];
@@ -199,6 +293,10 @@ router.post("/voice", upload.single("audio"), async (req, res) => {
     res.status(500).json({ error: "Voice processing failed" });
   }
 });
+
+
+
+
 
 
 /* =========================================================
@@ -304,6 +402,8 @@ router.get("/latest-booking", async (req, res) => {
     res.status(500).json({ error: "Failed" });
   }
 });
+
+
 
 /* =========================================================
    📅 SAVE WEEK SCHEDULE → n8n
@@ -416,5 +516,32 @@ router.post("/patient-report", async (req, res) => {
     res.status(500).json({ error: "Failed to generate patient report" });
   }
 });
+
+const SEND_RESCHEDULE_WEBHOOK =
+  "https://dharinisrisubramanian.n8n-wsk.com/webhook/sent_reschedule11";
+
+router.post("/sent_reschedule", async (req, res) => {
+  try {
+    console.log("🔥 /sent_reschedule route hit");
+    console.log("📦 Incoming body:", req.body);
+
+    const response = await fetch(SEND_RESCHEDULE_WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body),
+    });
+
+    console.log("📡 n8n status:", response.status);
+
+    const data = await response.json().catch(() => ({}));
+
+    res.json({ success: true, n8nResponse: data });
+
+  } catch (err) {
+    console.error("🔥 SEND/RESCHEDULE ERROR:", err);
+    res.status(500).json({ error: "Webhook failed" });
+  }
+});
+
 
 export default router;
