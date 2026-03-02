@@ -279,7 +279,7 @@
 //         </div>
 
 //         {/* AI Auto Follow-up banner */}
-       
+
 
 //         {/* Patient Follow-ups */}
 //         <div className="mt-6">
@@ -489,7 +489,8 @@
 // }
 
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import {
   FiCalendar,
   FiClock,
@@ -500,6 +501,8 @@ import {
   FiX,
   FiMessageSquare,
 } from "react-icons/fi";
+
+
 
 const PAGE_BG = "#FEFCE8";
 
@@ -536,6 +539,7 @@ const STATUS_STYLES = {
 
 const StatusChip = ({ status }) => {
   const s = STATUS_STYLES[status] || STATUS_STYLES.UPCOMING;
+
   return (
     <span
       className={[
@@ -604,85 +608,202 @@ const formatDatePretty = (iso) => {
 /* ---------- main component ---------- */
 
 export default function Followups() {
-  const [items, setItems] = useState([
-    {
-      id: "P001",
-      name: "Rajesh Kumar",
-      phone: "+91 98765 43210",
-      reason: "Hypertension – Check BP levels",
-      lastVisit: "1/22/2026",
-      dueDate: "2/8/2026",
-      status: "UPCOMING",
-      sent: true,
-      auto: true,
-    },
-    {
-      id: "P002",
-      name: "Priya Sharma",
-      phone: "+91 98765 43211",
-      reason: "Viral Fever – Follow-up check",
-      lastVisit: "1/31/2026",
-      dueDate: "2/6/2026",
-      status: "DUE TODAY",
-      sent: false,
-      auto: true,
-    },
-    {
-      id: "P004",
-      name: "Sneha Reddy",
-      phone: "+91 98765 43213",
-      reason: "Diabetes – Blood sugar monitoring",
-      lastVisit: "1/15/2026",
-      dueDate: "2/3/2026",
-      status: "OVERDUE",
-      sent: true,
-      auto: true,
-    },
-    {
-      id: "P005",
-      name: "Vikram Singh",
-      phone: "+91 98765 43214",
-      reason: "Post-surgery checkup",
-      lastVisit: "1/29/2026",
-      dueDate: "2/12/2026",
-      status: "UPCOMING",
-      sent: false,
-      auto: false,
-    },
-  ]);
+  const [items, setItems] = useState(() => {
+    const saved = localStorage.getItem("followups");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [loading, setLoading] = useState(false);
+  const location = useLocation();
+
+  const sortByPriority = (list) => {
+    const priority = {
+      "DUE TODAY": 1,
+      "UPCOMING": 2,
+      "OVERDUE": 3,
+    };
+
+    return [...list].sort(
+      (a, b) => priority[a.status] - priority[b.status]
+    );
+  };
 
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [target, setTarget] = useState(null);
   const [newDate, setNewDate] = useState("");
 
-const stats = useMemo(() => {
-  const total = items.length;
-  const upcoming = items.filter((i) => i.status === "UPCOMING").length;
-  const dueToday = items.filter((i) => i.status === "DUE TODAY").length;
-  const overdue = items.filter((i) => i.status === "OVERDUE").length;
+  const fetchFollowups = async () => {
+    try {
+      setLoading(true);
 
-  const remindersSent = items.filter((i) => i.sent).length;
+      const res = await fetch(
+        "http://localhost:3001/api/medibot/followups"
+      );
 
-  const completionRate =
-    total > 0 ? Math.round((remindersSent / total) * 100) : 0;
+      if (!res.ok) {
+        throw new Error("Failed to fetch followups");
+      }
 
-  return {
-    total,
-    upcoming,
-    dueToday,
-    overdue,
-    remindersSent,
-    completionRate,
+      const data = await res.json();
+
+
+
+      console.log("RAW DATA:", data);
+      // ✅ Always convert response into array safely
+      const rawArray = [].concat(data || []);
+
+      console.log("FINAL RAW ARRAY:", rawArray);
+
+
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+
+
+      const formatted = rawArray
+        .map((item) => {
+          if (!item.lastVisitDate || !item.followupDate) {
+            console.log("Missing dates in item:", item);
+            return null;
+          }
+
+          const [day1, month1, year1] = item.lastVisitDate.split("-");
+          const [day2, month2, year2] = item.followupDate.split("-");
+
+          const lastVisit = new Date(year1, month1 - 1, day1);
+          const followup = new Date(year2, month2 - 1, day2);
+
+          if (isNaN(lastVisit) || isNaN(followup)) {
+            return null;
+          }
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          followup.setHours(0, 0, 0, 0);
+
+          let status = "UPCOMING";
+
+          if (followup.getTime() === today.getTime()) {
+            status = "DUE TODAY";
+          } else if (followup.getTime() < today.getTime()) {
+            status = "OVERDUE";
+          }
+
+          return {
+            id: item.PatientId,
+            name: item.Patient_Name,
+            phone: String(item.Patient_Phone || ""),
+            reason: item.reason || "Follow-up check",
+            lastVisit: lastVisit.toISOString().split("T")[0],
+            dueDate: followup.toISOString().split("T")[0],
+            status: status,
+            sent: false,
+            auto: true,
+          };
+        })
+        .filter(Boolean); // 🔥 VERY IMPORTANT
+      console.log("FORMATTED ITEMS:", formatted);
+      setItems((prev) => {
+        const map = new Map();
+
+        // Put old items first
+        prev.forEach((item) => {
+          map.set(item.id, item);
+        });
+
+        // Add / Update with new items
+        formatted.forEach((item) => {
+          map.set(item.id, item);
+        });
+
+        const merged = Array.from(map.values());
+
+        return sortByPriority(merged);
+      });
+
+    } catch (error) {
+      console.error("Followups error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
-}, [items]);
 
-  const sendWhatsApp = (row) => {
-    const msg = `Hello ${row.name}, this is a reminder for your follow-up.\n\nReason: ${row.reason}\nFollow-up Due: ${row.dueDate}\n\nThank you.`;
-    const url = `https://wa.me/${normalizePhone(row.phone)}?text=${encodeURIComponent(msg)}`;
-    window.open(url, "_blank");
+  useEffect(() => {
+    fetchFollowups();
+  }, [location.pathname]);
 
-    setItems((prev) => prev.map((i) => (i.id === row.id ? { ...i, sent: true } : i)));
-  };
+  useEffect(() => {
+    localStorage.setItem("followups", JSON.stringify(items));
+  }, [items]);
+
+ const triggerWebhook = async (actionType, row, extraData = {}) => {
+  try {
+    const payload = {
+      action: actionType,
+      PatientId: row.id,
+      Patient_Name: row.name,
+      Patient_Phone: row.phone,
+      reason: row.reason,
+      lastVisitDate: row.lastVisit,
+      followupDate: row.dueDate,
+      ...extraData,
+    };
+
+    console.log("Sending to webhook:", payload);
+
+    await fetch(
+      "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/sent_reschedule11",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+  } catch (error) {
+    console.error("Webhook error:", error);
+  }
+};
+
+
+  const stats = useMemo(() => {
+    const total = items.length;
+    const upcoming = items.filter((i) => i.status === "UPCOMING").length;
+    const dueToday = items.filter((i) => i.status === "DUE TODAY").length;
+    const overdue = items.filter((i) => i.status === "OVERDUE").length;
+
+    const remindersSent = items.filter((i) => i.sent).length;
+
+    const completionRate =
+      total > 0 ? Math.round((remindersSent / total) * 100) : 0;
+
+    return {
+      total,
+      upcoming,
+      dueToday,
+      overdue,
+      remindersSent,
+      completionRate,
+    };
+  }, [items]);
+
+  const sendWhatsApp = async (row) => {
+  try {
+    // ✅ Only trigger webhook
+    await triggerWebhook("send", row);
+
+    // ✅ Just update UI (no redirect)
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === row.id ? { ...i, sent: true } : i
+      )
+    );
+
+  } catch (error) {
+    console.error("Send error:", error);
+  }
+};
 
   const openReschedule = (row) => {
     setTarget(row);
@@ -690,7 +811,7 @@ const stats = useMemo(() => {
     setRescheduleOpen(true);
   };
 
-  const saveReschedule = () => {
+  const saveReschedule = async () => {
     if (!target) return;
     if (!newDate) {
       alert("Please select a new date.");
@@ -699,17 +820,25 @@ const stats = useMemo(() => {
 
     const pretty = formatDatePretty(newDate) || target.dueDate;
 
+    // 🔴 Trigger webhook ONLY
+    await triggerWebhook("reschedule", target, {
+      newFollowupDate: pretty,
+    });
+
+    // 🟢 Update UI
     setItems((prev) =>
       prev.map((i) =>
         i.id === target.id
           ? {
-              ...i,
-              dueDate: pretty,
-              sent: false,
-            }
+            ...i,
+            dueDate: pretty,
+            sent: false,
+          }
           : i
       )
     );
+
+    // ❌ NO WhatsApp here
     setRescheduleOpen(false);
   };
 
@@ -798,12 +927,16 @@ const stats = useMemo(() => {
           <div className="font-extrabold text-sm text-black uppercase mb-3">Patient Follow-ups</div>
 
           <div className="space-y-4">
+            {items.length === 0 && !loading && (
+              <div className="text-sm text-black/60">No follow-ups found.</div>
+            )}
+
             {items.map((row) => {
               const s = STATUS_STYLES[row.status] || STATUS_STYLES.UPCOMING;
 
               return (
                 <div
-                  key={row.id}
+                  key={row.id || row.PatientId || Math.random()}
                   className={["border-2 rounded-md overflow-hidden", s.border, s.cardBg].join(" ")}
                 >
                   <div className="p-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -865,8 +998,8 @@ const stats = useMemo(() => {
                       <FiMessageSquare className="mt-1" />
                       <div className="text-black/75">
                         {row.sent
-                          ? "Reminder sent via WhatsApp."
-                          : "Reminder pending — will auto-send 2 days before (demo)."}
+                          ? "Reminder sent via Gmail."
+                          : "Reminder pending — will auto-send 2 days before."}
                       </div>
                     </div>
                   </div>
