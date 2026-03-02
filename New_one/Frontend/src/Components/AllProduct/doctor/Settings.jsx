@@ -245,26 +245,29 @@ export default function Settings() {
     });
   };
 
-  const saveChanges = () => {
-    setSaving(true);
+const saveChanges = () => {
+  setSaving(true);
 
-    localStorage.setItem("doctorSettings", JSON.stringify(doctor));
-    localStorage.setItem("clinicSettings", JSON.stringify(clinic));
-    localStorage.setItem("billingSettings", JSON.stringify(billing));
-    localStorage.setItem("notifySettings", JSON.stringify(notify));
-    localStorage.setItem("profilePhoto", photoUrl);
+  localStorage.setItem("doctorSettings", JSON.stringify(doctor));
+  localStorage.setItem("clinicSettings", JSON.stringify(clinic));
+  localStorage.setItem("billingSettings", JSON.stringify(billing));
+  localStorage.setItem("notifySettings", JSON.stringify(notify));
+  localStorage.setItem("profilePhoto", photoUrl);
 
+  window.dispatchEvent(new Event("profileUpdated"));
+
+  setTimeout(() => {
+    setSaving(false);
+    setShowSuccess(true);
+
+    // ✅ Auto refresh after 1 second
     setTimeout(() => {
-      setSaving(false);
-      setShowSuccess(true);   // ✅ show success message
+      window.location.reload();
+    }, 1000);
 
-      // auto hide after 3 seconds
-      setTimeout(() => {
-        setShowSuccess(false);
-      }, 3000);
+  }, 500);
+};
 
-    }, 500);
-  };
   const openFilePicker = () => fileRef.current?.click();
 
   const onPhotoPicked = (e) => {
