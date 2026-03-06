@@ -578,7 +578,7 @@ function HistoryItem({ item }) {
         <div>
           <div className="font-extrabold text-sm text-black">{item.title}</div>
           <div className="text-xs text-black/60 mt-1">
-            {item.date} • {item.time} • {item.reportId}
+            {item.reportId}
           </div>
         </div>
         <div className="text-[11px] font-extrabold border-2 border-black rounded-sm px-2 py-1 bg-[#EAFBFF]">
@@ -657,13 +657,13 @@ export default function Patients() {
       const data = await response.json();
 
       const formattedPatients = data.map((item) => ({
-  id: item["Patient id "]?.trim() || "",
-  name: item["Patient_name"]?.trim() || "",
-  age: item["Age "] || "",
-  phone: item["phone_number"]?.toString() || "",
-  email: item["email_id"] || "",
-  location: item["location"] || "",
-}));
+        id: item["Patient id "]?.trim() || "",
+        name: item["Patient_name"]?.trim() || "",
+        age: item["Age "] || "",
+        phone: item["phone_number"]?.toString() || "",
+        email: item["email_id"] || "",
+        location: item["location"] || "",
+      }));
       setPatients(formattedPatients);
 
     } catch (err) {
@@ -717,21 +717,21 @@ export default function Patients() {
 
       // existing selected patient logic
       const formattedReports = data.map((item, index) => ({
-  reportId: `R${index + 1}`,
-  patientId: item.PatientId,   // ✅ correct
-  type: "report",
-  title: "Medical Report",
-  date: new Date().toLocaleDateString(),
-  time: new Date().toLocaleTimeString(),
-  vitals: {
-    height: item.Height ? `${item.Height} cm` : "-",
-    weight: item.Weight ? `${item.Weight} kg` : "-",
-    bp: item.BP ? `${item.BP}` : "-",
-  },
-  medication: item.Medication || "-",   // ✅ correct
-  symptoms: item.Symptoms || "-",
-  doctorNotes: item.Notes || "-",       // ✅ correct
-}));
+        reportId: `R${index + 1}`,
+        patientId: item.PatientId,   // ✅ correct
+        type: "report",
+        title: "Medical Report",
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString(),
+        vitals: {
+          height: item.Height ? `${item.Height} cm` : "-",
+          weight: item.Weight ? `${item.Weight} kg` : "-",
+          bp: item.BP ? `${item.BP}` : "-",
+        },
+        medication: item.Medication || "-",   // ✅ correct
+        symptoms: item.Symptoms || "-",
+        doctorNotes: item.Notes || "-",       // ✅ correct
+      }));
 
       setReportHistory(formattedReports);
 
@@ -775,12 +775,22 @@ export default function Patients() {
   const goNewPatient = () => navigate(`${DOCTOR_BASE}/capture`);
 
   // ✅ FIXED: go to doctor module capture/:patientId
-  const goNewConsultation = (p) => {
+const goNewConsultation = (p) => {
 
-    const payload = { patientId: p.id, patientName: p.name };
-    sessionStorage.setItem("capturePatient", JSON.stringify(payload));
-    navigate(`${DOCTOR_BASE}/capture/${p.id}`, { state: payload });
+  const payload = {
+    patientId: p.id,
+    patientName: p.name,
+    location: p.location,
+    age: p.age,
+    email: p.email,
+    phone: p.phone
   };
+
+  // fallback for refresh
+  sessionStorage.setItem("capturePatient", JSON.stringify(payload));
+
+  navigate(`${DOCTOR_BASE}/capture/${p.id}`, { state: payload });
+};
 
   // ===============================
   // DOWNLOAD ALL REPORTS EXCEL
@@ -1049,7 +1059,7 @@ export default function Patients() {
               <span className="text-black/50">({selectedPatient.id})</span>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
               {loadingReport ? (
                 <div className="text-sm text-black/60">
                   Loading reports...
