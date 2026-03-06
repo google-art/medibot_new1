@@ -626,35 +626,52 @@ export default function CaptureVitals() {
   // ✅ Resolve PatientId + Name from params OR navigate state OR session storage
   const [resolvedPatientId, setResolvedPatientId] = useState(patientIdParam || "");
 
-  useEffect(() => {
-    // 1) from Patients.jsx navigate state
-    const stateName = location?.state?.patientName || "";
-    const stateId = location?.state?.patientId || "";
 
-    // 2) fallback from sessionStorage
-    let storageName = "";
-    let storageId = "";
-    try {
-      const raw = sessionStorage.getItem("capturePatient");
-      const parsed = raw ? JSON.parse(raw) : null;
-      storageName = parsed?.patientName || "";
-      storageId = parsed?.patientId || "";
-    } catch {
-      storageName = "";
-      storageId = "";
-    }
 
-    const finalName = stateName || storageName;
-    const finalId = patientIdParam || stateId || storageId || "";
 
-    if (finalId && !resolvedPatientId) setResolvedPatientId(finalId);
+useEffect(() => {
 
-    // only auto-fill if empty (doctor can still edit)
-    if (finalName && !patientName.trim()) {
-      setPatientName(finalName);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location?.state, patientIdParam]);
+  // ❗ If no patientId in URL → new patient
+  if (!patientIdParam) {
+    setResolvedPatientId("");
+    setPatientName("");
+    return;
+  }
+
+ const stateName = location?.state?.patientName || "";
+const stateId = location?.state?.patientId || "";
+  // fallback from sessionStorage
+  let storageName = "";
+  let storageId = "";
+
+  try {
+    const raw = sessionStorage.getItem("capturePatient");
+    const parsed = raw ? JSON.parse(raw) : null;
+
+    storageName = parsed?.patientName || "";
+    storageId = parsed?.patientId || "";
+  } catch {}
+
+const stateData = location?.state || {};
+
+const finalName = stateName || storageName;
+const finalId = patientIdParam || stateId || storageId;
+
+if (finalId) setResolvedPatientId(finalId);
+
+if (finalName) setPatientName(finalName);
+
+// ⭐ ADD THIS BLOCK
+if (stateData) {
+  setContact({
+    age: stateData.age || "",
+    location: stateData.location || "",
+    email: stateData.email || "",
+    phone: stateData.phone || "",
+  });
+}
+
+}, [location?.state, patientIdParam]);
 
   // 🔍 Fetch patient details from backend
   const fetchPatientDetails = async (id) => {
