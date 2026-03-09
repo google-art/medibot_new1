@@ -200,7 +200,7 @@ router.get("/BillingDetails", async (req, res) => {
     console.log("Calling n8n webhook...");
 
     const response = await fetch(
-      "https://dharinisrisubramanian.n8n-wsk.com/webhook/BillingDetails"
+      "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/BillingDetails"
     );
 
     const text = await response.text();
