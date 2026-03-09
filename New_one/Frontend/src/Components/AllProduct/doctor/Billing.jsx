@@ -908,82 +908,44 @@ const Billing = () => {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("billing_records");
 
-    if (saved) {
-      setRecords(JSON.parse(saved));
-      setLoading(false);
-    }
-  }, []);
 
 
   const fetchBillingDetails = async () => {
     try {
-      setLoading(true);
-      setFetchError(null);
-
-      const res = await fetch(
-        "http://localhost:3001/api/medibot/BillingDetails"
-      );
-
+      const res = await fetch("http://localhost:3001/api/medibot/BillingDetails");
       const json = await res.json();
 
-      console.log("Billing data:", json);
-
-      // ✅ FIX — force array
       let data = [];
 
-      if (Array.isArray(json)) {
-        data = json;
-      } else if (json.data) {
-        data = json.data;
-      } else if (json.body) {
-        data = json.body;
-      } else {
-        data = [json];   // ✅ IMPORTANT FIX
-      }
+      if (Array.isArray(json)) data = json;
+      else if (json.data) data = json.data;
+      else if (json.body) data = json.body;
+      else data = [json];
 
-      console.log("DATA ARRAY:", data);
-
-      const formatted = data.map((item) => ({
-        id: item.PatientId || "",
-        name: item.Patient_Name || "",
-
-        date: getCurrentDate(),
-        time: getCurrentTime(),
-
-        fee: appBillingSettings.defaultFee || 200,
-        status: "pending",
-        note: "",
-      }));
-
-      console.log("FORMATTED:", formatted);
+      const formatted = data
+        .filter((item) => item.PatientId && item.Patient_Name)   // prevents empty card
+        .map((item) => ({
+          id: item.PatientId,
+          name: item.Patient_Name,
+          date: getCurrentDate(),
+          time: getCurrentTime(),
+          fee: appBillingSettings.defaultFee || 200,
+          status: "pending",
+          note: "",
+        }));
 
       setRecords((prev) => {
+        const existingIds = new Set(prev.map((r) => r.id));
 
-        const merged = [...prev];
+        const newRecords = formatted.filter((r) => !existingIds.has(r.id));
 
-        formatted.forEach((newRec) => {
-          const exists = merged.find((r) => r.id === newRec.id);
-
-          if (!exists) {
-            merged.push(newRec);
-          }
-        });
-
-        return merged;
+        return [...prev, ...newRecords];
       });
-
     } catch (err) {
       console.error(err);
-      setFetchError("Failed to load payment records");
-    } finally {
-      setLoading(false);
     }
   };
-
-
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
     try {
@@ -1205,19 +1167,31 @@ const Billing = () => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(
-      "billing_records",
-      JSON.stringify(records)
-    );
-  }, [records]);
+    const savedRecords = localStorage.getItem("billing_records");
+
+    if (savedRecords) {
+      try {
+        const parsed = JSON.parse(savedRecords);
+        setRecords(parsed);
+      } catch (err) {
+        console.error("Failed to parse billing records", err);
+      }
+    }
+
+    setLoading(false);
+  }, []);
   // run only once when page loads
   // ✅ patient summary (counts)
 
   const patientSummary = useMemo(() => {
-    const paid = records.filter((r) => r.status === "paid").length;
-    const pending = records.filter((r) => r.status === "pending").length;
-    const overdue = records.filter((r) => r.status === "overdue").length;
-    const uniquePatients = new Set(records.map((r) => r.id)).size;
+    const validRecords = records.filter((r) => r.id && r.name);
+
+    const paid = validRecords.filter((r) => r.status === "paid").length;
+    const pending = validRecords.filter((r) => r.status === "pending").length;
+    const overdue = validRecords.filter((r) => r.status === "overdue").length;
+
+    const uniquePatients = new Set(validRecords.map((r) => r.id)).size;
+
     return { uniquePatients, paid, pending, overdue };
   }, [records]);
 
@@ -1231,7 +1205,7 @@ const Billing = () => {
     };
 
     const list = records.filter((r) => {
-      if (!r) return false;
+      if (!r.id || !r.name) return false;
 
       const name = r.name || "";
       const id = r.id || "";
