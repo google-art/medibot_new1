@@ -162,7 +162,7 @@ const PATIENT_REPORT_WEBHOOK =
   "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/Patient_Report_patient_pannel";
 
 const BILLING_DETAILS_URL =
-  "https://dharinisrisubramanian.n8n-wsk.com/webhook/BillingDetails";
+  "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/BillingDetails";
 
 
 
@@ -200,7 +200,7 @@ router.get("/BillingDetails", async (req, res) => {
     console.log("Calling n8n webhook...");
 
     const response = await fetch(
-      "https://dharinisrisubramanian.n8n-wsk.com/webhook/BillingDetails"
+      "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/BillingDetails"
     );
 
     const text = await response.text();
@@ -369,39 +369,6 @@ router.get("/generate-patient-id", async (req, res) => {
 /* =========================================================
    📅 GET LATEST BOOKINGS (For Notifications)
 ========================================================= */
-
-const GET_ALL_BOOKINGS =
-  "https://dharinisrisubramanian.n8n-wsk.com/webhook/getalldata-solo";
-
-router.get("/latest-booking", async (req, res) => {
-  try {
-    console.log("🔥 Calling n8n with POST");
-
-    const response = await fetch(GET_ALL_BOOKINGS, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({}),
-    });
-
-    const data = await response.json();
-
-    console.log("🔥 n8n RAW DATA:", data);
-
-    // ✅ If n8n already sends { latest: {...} }
-    if (data && data.latest) {
-      return res.json({ latest: data.latest });
-    }
-
-    // Fallback safety
-    return res.json({ latest: null });
-
-  } catch (err) {
-    console.error("🔥 ERROR:", err);
-    res.status(500).json({ error: "Failed" });
-  }
-});
 
 
 
