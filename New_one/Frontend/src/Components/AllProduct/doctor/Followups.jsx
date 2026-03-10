@@ -608,10 +608,8 @@ const formatDatePretty = (iso) => {
 /* ---------- main component ---------- */
 
 export default function Followups() {
-  const [items, setItems] = useState(() => {
-    const saved = localStorage.getItem("followups");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [items, setItems] = useState([]);
+
   const [loading, setLoading] = useState(false);
   const location = useLocation();
 
@@ -733,38 +731,50 @@ export default function Followups() {
   }, [location.pathname]);
 
   useEffect(() => {
-    localStorage.setItem("followups", JSON.stringify(items));
-  }, [items]);
-
- const triggerWebhook = async (actionType, row, extraData = {}) => {
-  try {
-    const payload = {
-      action: actionType,
-      PatientId: row.id,
-      Patient_Name: row.name,
-      Patient_Phone: row.phone,
-      reason: row.reason,
-      lastVisitDate: row.lastVisit,
-      followupDate: row.dueDate,
-      ...extraData,
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchFollowups(); // refresh when user returns to tab
+      }
     };
 
-    console.log("Sending to webhook:", payload);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    await fetch(
-      "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/sent_reschedule11",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      }
-    );
-  } catch (error) {
-    console.error("Webhook error:", error);
-  }
-};
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+
+
+  const triggerWebhook = async (actionType, row, extraData = {}) => {
+    try {
+      const payload = {
+        action: actionType,
+        PatientId: row.id,
+        Patient_Name: row.name,
+        Patient_Phone: row.phone,
+        reason: row.reason,
+        lastVisitDate: row.lastVisit,
+        followupDate: row.dueDate,
+        ...extraData,
+      };
+
+      console.log("Sending to webhook:", payload);
+
+      await fetch(
+        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/sent_reschedule11",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+    } catch (error) {
+      console.error("Webhook error:", error);
+    }
+  };
 
 
   const stats = useMemo(() => {
@@ -789,21 +799,30 @@ export default function Followups() {
   }, [items]);
 
   const sendWhatsApp = async (row) => {
-  try {
-    // ✅ Only trigger webhook
-    await triggerWebhook("send", row);
+    try {
+      // trigger webhook
+      await triggerWebhook("send", row);
 
-    // ✅ Just update UI (no redirect)
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === row.id ? { ...i, sent: true } : i
-      )
-    );
+      // show SENT immediately
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === row.id ? { ...i, sent: true } : i
+        )
+      );
 
-  } catch (error) {
-    console.error("Send error:", error);
-  }
-};
+      // after 5 seconds revert back to SEND NOW
+      setTimeout(() => {
+        setItems((prev) =>
+          prev.map((i) =>
+            i.id === row.id ? { ...i, sent: false } : i
+          )
+        );
+      }, 5000); // 5 seconds
+
+    } catch (error) {
+      console.error("Send error:", error);
+    }
+  };
 
   const openReschedule = (row) => {
     setTarget(row);

@@ -657,12 +657,12 @@ export default function Patients() {
       const data = await response.json();
 
       const formattedPatients = data.map((item) => ({
-        id: item["Patient id "]?.trim() || "",
-        name: item["Patient_name"]?.trim() || "",
-        age: item["Age "] || "",
-        phone: item["phone_number"]?.toString() || "",
-        email: item["email_id"] || "",
-        location: item["location"] || "",
+        id: item.PatientId || "",
+        name: item.Patient_Name || "",
+        age: item.Age || "",
+        phone: item.Patient_Phone?.toString() || "",
+        email: item.Patient_Email || "",
+        location: item.Location || "",
       }));
       setPatients(formattedPatients);
 
@@ -775,22 +775,22 @@ export default function Patients() {
   const goNewPatient = () => navigate(`${DOCTOR_BASE}/capture`);
 
   // ✅ FIXED: go to doctor module capture/:patientId
-const goNewConsultation = (p) => {
+  const goNewConsultation = (p) => {
 
-  const payload = {
-    patientId: p.id,
-    patientName: p.name,
-    location: p.location,
-    age: p.age,
-    email: p.email,
-    phone: p.phone
+    const payload = {
+      patientId: p.id,
+      patientName: p.name,
+      location: p.location,
+      age: p.age,
+      email: p.email,
+      phone: p.phone
+    };
+
+    // fallback for refresh
+    sessionStorage.setItem("capturePatient", JSON.stringify(payload));
+
+    navigate(`${DOCTOR_BASE}/capture/${p.id}`, { state: payload });
   };
-
-  // fallback for refresh
-  sessionStorage.setItem("capturePatient", JSON.stringify(payload));
-
-  navigate(`${DOCTOR_BASE}/capture/${p.id}`, { state: payload });
-};
 
   // ===============================
   // DOWNLOAD ALL REPORTS EXCEL

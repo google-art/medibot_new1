@@ -162,7 +162,7 @@ const PATIENT_REPORT_WEBHOOK =
   "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/Patient_Report_patient_pannel";
 
 const BILLING_DETAILS_URL =
-  "https://dharinisrisubramanian.n8n-wsk.com/webhook/BillingDetails";
+  "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/BillingDetails";
 
 
 
@@ -171,9 +171,9 @@ router.get("/followups", async (req, res) => {
     console.log("🔥 /followups route HIT");
 
     const response = await fetch(
-      "https://dharinisrisubramanian.n8n-wsk.com/webhook/Followupsdetails",
+      "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/Followupsdetails",
       {
-        method: "POST",   // ⚠️ Important — most n8n webhooks expect POST
+        method: "POST",   
         headers: {
           "Content-Type": "application/json",
         },
