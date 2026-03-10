@@ -997,6 +997,8 @@ const Billing = () => {
     }
   }, []);
 
+  
+
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all"); // all | pending | paid | overdue
   const [revenueFilter, setRevenueFilter] = useState("all");

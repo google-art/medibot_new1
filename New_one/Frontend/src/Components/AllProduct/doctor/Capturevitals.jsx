@@ -629,49 +629,48 @@ export default function CaptureVitals() {
 
 
 
-useEffect(() => {
+  useEffect(() => {
 
-  // ❗ If no patientId in URL → new patient
-  if (!patientIdParam) {
-    setResolvedPatientId("");
-    setPatientName("");
-    return;
-  }
+    // ❗ If no patientId in URL → new patient
+    if (!patientIdParam) {
+      setResolvedPatientId("");
+      setPatientName("");
+      return;
+    }
 
- const stateName = location?.state?.patientName || "";
-const stateId = location?.state?.patientId || "";
-  // fallback from sessionStorage
-  let storageName = "";
-  let storageId = "";
+    const stateName = location?.state?.patientName || "";
+    const stateId = location?.state?.patientId || "";
+    // fallback from sessionStorage
+    let storageName = "";
+    let storageId = "";
 
-  try {
-    const raw = sessionStorage.getItem("capturePatient");
-    const parsed = raw ? JSON.parse(raw) : null;
+    try {
+      const raw = sessionStorage.getItem("capturePatient");
+      const parsed = raw ? JSON.parse(raw) : null;
 
-    storageName = parsed?.patientName || "";
-    storageId = parsed?.patientId || "";
-  } catch {}
+      storageName = parsed?.patientName || "";
+      storageId = parsed?.patientId || "";
+    } catch { }
 
-const stateData = location?.state || {};
+    const stateData = location?.state || {};
 
-const finalName = stateName || storageName;
-const finalId = patientIdParam || stateId || storageId;
+    const finalName = stateName || storageName;
+    const finalId = patientIdParam || stateId || storageId;
 
-if (finalId) setResolvedPatientId(finalId);
+    if (finalId) setResolvedPatientId(finalId);
 
-if (finalName) setPatientName(finalName);
+    if (finalName) setPatientName(finalName);
 
-// ⭐ ADD THIS BLOCK
-if (stateData) {
-  setContact({
-    age: stateData.age || "",
-    location: stateData.location || "",
-    email: stateData.email || "",
-    phone: stateData.phone || "",
-  });
-}
+    // ⭐ ADD THIS BLOCK
+    if (stateData) {
+      setContact({
+        age: stateData.age || "",
+        email: stateData.email || "",
+        phone: stateData.phone || "",
+      });
+    }
 
-}, [location?.state, patientIdParam]);
+  }, [location?.state, patientIdParam]);
 
   // 🔍 Fetch patient details from backend
   const fetchPatientDetails = async (id) => {
@@ -725,15 +724,21 @@ if (stateData) {
       } else {
         const data = response[0];
 
-// 🔥 CLEAN + SAFE MAPPING
-setPatientName(data["Patient_name"]?.trim() || "");
+        // 🔥 CLEAN + SAFE MAPPING
+        setPatientName(data?.Name || "");
 
-setContact({
-  age: data["Age "] || data["Age"] || "",
-  location: data["location"] || "",
-  email: data["email_id"] || "",
-  phone: data["phone_number"] || "",
-});
+        setContact({
+          age: data["Age"] || "",
+          location: data["location"] || "",
+          email: data["Email"] || "",
+          phone: String(
+            data["Phone Number"] ||
+            data["Phone Number "] ||
+            data["Phone_Number"] ||
+            data["phone_number"] ||
+            ""
+          ),
+        });
       }
 
     } catch (err) {
@@ -861,7 +866,7 @@ setContact({
         <div className="mt-6 border-2 border-black bg-white rounded-md p-5">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-            <div>
+<div>
               <Label>Location</Label>
               <Field
                 value={contact.location}

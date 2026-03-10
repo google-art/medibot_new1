@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import html2pdf from "html2pdf.js";
 import {
   FiActivity,
   FiArrowLeft,
@@ -441,64 +442,250 @@ export default function Consultation() {
 
     return lines.join("\n");
   };
+const generatePatientPDF = async () => {
 
-const handleSaveAndSend = async () => {
-  if (!filled || isSavingReport) return;
+  const html = `
+  <div style="
+      font-family: Arial, sans-serif;
+      padding:40px;
+      width:100%;
+      color:#333;
+      background:#ffffff;
+  ">
 
-  try {
-    setIsSavingReport(true);
+  <!-- HEADER -->
+  <div style="
+      text-align:center;
+      padding-bottom:15px;
+      border-bottom:3px solid #2b6cb0;
+      margin-bottom:30px;
+  ">
+      <h1 style="
+          margin:0;
+          color:#2b6cb0;
+          letter-spacing:1px;
+      ">
+          Patient Medical Report
+      </h1>
+  </div>
 
-    const formData = new FormData();
 
-    formData.append("patientId", patientId);
-    formData.append("patientName", patientName);
-    formData.append("patientEmail", patientEmail);
-    formData.append("patientPhone", patientPhone);
-    formData.append("height", vitals.height || "");
-    formData.append("weight", vitals.weight || "");
-    formData.append("bp", vitals.bp || "");
-    formData.append("temp", vitals.temp || "");
-    formData.append("pulse", vitals.pulse || "");
+  <!-- PATIENT INFORMATION -->
+  <div style="
+      background:#f5f9ff;
+      border:1px solid #d9e6ff;
+      border-radius:6px;
+      padding:15px;
+      margin-bottom:25px;
+  ">
 
-    formData.append("diagnosis", report?.diagnosis || "");
-    formData.append("medication", report?.medication || "");
-    formData.append("symptoms", report?.symptoms || "");
-    formData.append("notes", report?.notes || "");
-    formData.append("followup", report?.followup || "");
+      <table style="width:100%; border-collapse:collapse;">
+          <tr>
+              <td style="font-weight:bold; width:200px;">Patient Name</td>
+              <td>${patientName}</td>
+          </tr>
+          <tr>
+              <td style="font-weight:bold;">Patient ID</td>
+              <td>${patientId}</td>
+          </tr>
+      </table>
 
-    if (uploadedFile) {
-      formData.append("reportFile", uploadedFile);
-    }
+  </div>
 
-    const res = await fetch(
-      "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/patient_details_save_and_send",
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
 
-    if (!res.ok) throw new Error("Webhook failed");
+  <!-- VITALS -->
+  <h3 style="
+      color:#2b6cb0;
+      margin-bottom:10px;
+      border-bottom:2px solid #e2e8f0;
+      padding-bottom:5px;
+  ">
+      Vitals
+  </h3>
 
-    setToast({
-      type: "success",
-      message: "Medical report sent successfully!",
-    });
+  <table style="
+      width:100%;
+      border-collapse:collapse;
+      margin-bottom:25px;
+      font-size:14px;
+  ">
 
-    openWhatsApp(buildShareText());
+      <tr style="background:#edf2ff;">
+          <td style="padding:10px; font-weight:bold;">Height</td>
+          <td style="padding:10px;">${vitals.height || "-"}</td>
 
-  } catch (err) {
-    console.error("❌ Save failed:", err);
+          <td style="padding:10px; font-weight:bold;">Weight</td>
+          <td style="padding:10px;">${vitals.weight || "-"}</td>
+      </tr>
 
-    setToast({
-      type: "error",
-      message: "Failed to send medical report.",
-    });
+      <tr>
+          <td style="padding:10px; font-weight:bold;">Blood Pressure</td>
+          <td style="padding:10px;">${vitals.bp || "-"}</td>
 
-  } finally {
-    setIsSavingReport(false);
-  }
+          <td style="padding:10px; font-weight:bold;">Temperature</td>
+          <td style="padding:10px;">${vitals.temp || "-"}</td>
+      </tr>
+
+      <tr style="background:#edf2ff;">
+          <td style="padding:10px; font-weight:bold;">Pulse</td>
+          <td style="padding:10px;">${vitals.pulse || "-"}</td>
+          <td></td>
+          <td></td>
+      </tr>
+
+  </table>
+
+
+  <!-- SYMPTOMS -->
+  <div style="margin-bottom:20px;">
+      <h3 style="
+          color:#2b6cb0;
+          border-bottom:1px solid #e2e8f0;
+          padding-bottom:5px;
+      ">
+          Symptoms
+      </h3>
+
+      <p style="
+          margin-top:8px;
+          line-height:1.6;
+      ">
+          ${report.symptoms || "-"}
+      </p>
+  </div>
+
+
+  <!-- MEDICATION -->
+  <div style="margin-bottom:20px;">
+      <h3 style="
+          color:#2b6cb0;
+          border-bottom:1px solid #e2e8f0;
+          padding-bottom:5px;
+      ">
+          Medication
+      </h3>
+
+      <p style="
+          margin-top:8px;
+          line-height:1.6;
+      ">
+          ${report.medication || "-"}
+      </p>
+  </div>
+
+
+  <!-- DOCTOR NOTES -->
+  <div style="margin-bottom:20px;">
+      <h3 style="
+          color:#2b6cb0;
+          border-bottom:1px solid #e2e8f0;
+          padding-bottom:5px;
+      ">
+          Doctor Notes
+      </h3>
+
+      <p style="
+          margin-top:8px;
+          line-height:1.6;
+      ">
+          ${report.notes || "-"}
+      </p>
+  </div>
+
+
+  <!-- FOLLOW UP -->
+  <div>
+      <h3 style="
+          color:#2b6cb0;
+          border-bottom:1px solid #e2e8f0;
+          padding-bottom:5px;
+      ">
+          Follow Up
+      </h3>
+
+      <p style="
+          margin-top:8px;
+          line-height:1.6;
+      ">
+          ${report.followup || "-"}
+      </p>
+  </div>
+
+  </div>
+  `;
+
+
+  const pdfBlob = await html2pdf()
+    .set({
+      margin: 10,
+      filename: "patient-report.pdf",
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    })
+    .from(html)
+    .outputPdf("blob");
+
+  return pdfBlob;
 };
+  const handleSaveAndSend = async () => {
+    if (!filled || isSavingReport) return;
+
+    try {
+      setIsSavingReport(true);
+
+      const formData = new FormData();
+      const pdfBlob = await generatePatientPDF();
+      formData.append("pdfReport", pdfBlob, "patient-report.pdf");
+
+      formData.append("patientId", patientId);
+      formData.append("patientName", patientName);
+      formData.append("patientEmail", patientEmail);
+      formData.append("patientPhone", patientPhone);
+      formData.append("height", vitals.height || "");
+      formData.append("weight", vitals.weight || "");
+      formData.append("bp", vitals.bp || "");
+      formData.append("temp", vitals.temp || "");
+      formData.append("pulse", vitals.pulse || "");
+
+      formData.append("diagnosis", report?.diagnosis || "");
+      formData.append("medication", report?.medication || "");
+      formData.append("symptoms", report?.symptoms || "");
+      formData.append("notes", report?.notes || "");
+      formData.append("followup", report?.followup || "");
+
+      if (uploadedFile) {
+        formData.append("reportFile", uploadedFile);
+      }
+
+      const res = await fetch(
+        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/patient_details_save_and_send",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!res.ok) throw new Error("Webhook failed");
+
+      setToast({
+        type: "success",
+        message: "Medical report sent successfully!",
+      });
+
+      openWhatsApp(buildShareText());
+
+    } catch (err) {
+      console.error("❌ Save failed:", err);
+
+      setToast({
+        type: "error",
+        message: "Failed to send medical report.",
+      });
+
+    } finally {
+      setIsSavingReport(false);
+    }
+  };
 
   // ✅ Keep mock consultations only for NON-existing flow (optional)
   const consultations = useMemo(
@@ -1038,36 +1225,36 @@ const handleSaveAndSend = async () => {
 
               <div className="mt-5 flex justify-end">
                 <PrimaryButton
-  onClick={handleSaveAndSend}
-  disabled={!filled || isSavingReport}
->
-  {isSavingReport ? (
-    <>
-      <svg
-        className="animate-spin h-4 w-4"
-        viewBox="0 0 24 24"
-      >
-        <circle
-          className="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="black"
-          strokeWidth="4"
-          fill="none"
-        />
-        <path
-          className="opacity-75"
-          fill="black"
-          d="M4 12a8 8 0 018-8v4l3-3-3-3v4A12 12 0 000 12h4z"
-        />
-      </svg>
-      SENDING...
-    </>
-  ) : (
-    "SAVE & SEND (Email)"
-  )}
-</PrimaryButton>
+                  onClick={handleSaveAndSend}
+                  disabled={!filled || isSavingReport}
+                >
+                  {isSavingReport ? (
+                    <>
+                      <svg
+                        className="animate-spin h-4 w-4"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="black"
+                          strokeWidth="4"
+                          fill="none"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="black"
+                          d="M4 12a8 8 0 018-8v4l3-3-3-3v4A12 12 0 000 12h4z"
+                        />
+                      </svg>
+                      SENDING...
+                    </>
+                  ) : (
+                    "SAVE & SEND (Email)"
+                  )}
+                </PrimaryButton>
               </div>
             </Card>
           </div>
@@ -1077,15 +1264,15 @@ const handleSaveAndSend = async () => {
             If you still want it for NEW consultations only, you can re-add it with:
             {!isExistingConsultation && (...)}  */}
       </main >
-       {/* 🔔 TOAST — ADD THIS HERE */}
+      {/* 🔔 TOAST — ADD THIS HERE */}
       {toast && (
         <div className="fixed top-6 right-6 z-50">
           <div
             className={`min-w-[260px] px-6 py-3 rounded-md border-2 font-semibold text-sm shadow-xl
             ${toast.type === "success"
-              ? "bg-[#EFFFF5] border-[#00C950]"
-              : "bg-[#FFEAEA] border-[#FF4D4D]"
-            }`}
+                ? "bg-[#EFFFF5] border-[#00C950]"
+                : "bg-[#FFEAEA] border-[#FF4D4D]"
+              }`}
           >
             {toast.message}
           </div>
