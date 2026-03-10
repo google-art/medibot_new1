@@ -2147,56 +2147,84 @@ export default function Appointment() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const res = await fetch("http://localhost:3001/api/medibot/latest-booking");
-        const data = await res.json();
+useEffect(() => {
 
-        const latest = data?.latest || data?.[0]?.latest;
-        if (!latest) return;
+  const fetchNotifications = async () => {
 
-        // ✅ INSERT HERE
-        const parsedDate = new Date(latest.Date);
-        const formattedDate = toKey(parsedDate);
+    try {
 
-        const formattedTime =
-          latest.Time.length === 5
-            ? latest.Time
-            : new Date(`1970-01-01T${latest.Time}`)
-              .toTimeString()
-              .slice(0, 5);
+      const res = await fetch(
+        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/notification",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      );
 
-        const formatted = {
-          id: latest["Book-id"],
-          patient: latest.Name || "Unknown",
-          pid: latest["patient id "] || latest["patient id"] || "N/A",
-          phone: latest.Phone || "N/A",
-          email: latest.email || "N/A",
-          date: formattedDate,   // ✅ FIXED
-          timeSlot: formattedTime,
+      if (!res.ok) {
+        console.warn("Webhook not active yet...");
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!Array.isArray(data)) return;
+
+      const formattedNotifications = data.map((item, index) => {
+
+        const dateParts = item["Slot booked date"]?.split("-") || [];
+
+        const formattedDate =
+          dateParts.length === 3
+            ? `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`
+            : "";
+
+        return {
+          id: item.row_number || index,
+          patient: item["Name"] || "Unknown",
+          pid: item["Patient Id"] || "N/A",
+          phone: item["Phone Number "] || "N/A",
+          email: item["Email"] || "N/A",
+          date: formattedDate,
+          timeSlot: item["Slot Booked time"] || "00:00",
           via: "CHATBOT",
           bookedAt: new Date().toLocaleString(),
-          read: false,
+          read: false
         };
-        setNotifications((prev) => {
-          const exists = prev.some((n) => n.id === formatted.id);
-          if (exists) return prev;
 
-          const updated = [formatted, ...prev];
-          localStorage.setItem("notifications", JSON.stringify(updated));
-          return updated;
-        });
+      });
 
-      } catch (err) {
-        console.error("Notification fetch failed", err);
-      }
-    };
+      setNotifications((prev) => {
 
-    fetchNotifications();
+        const existingIds = new Set(prev.map(n => n.id));
 
-  }, []);
+        const newOnes = formattedNotifications.filter(
+          n => !existingIds.has(n.id)
+        );
 
+        const updated = [...prev, ...newOnes];
+
+        localStorage.setItem("notifications", JSON.stringify(updated));
+
+        return updated;
+
+      });
+
+    } catch (error) {
+      console.warn("n8n test webhook not running");
+    }
+
+  };
+
+  fetchNotifications();
+
+  const interval = setInterval(fetchNotifications, 10000);
+
+  return () => clearInterval(interval);
+
+}, []);
   const [hoursByDate, setHoursByDate] = useState(() => {
     const saved = localStorage.getItem("hoursByDate");
     if (saved) return JSON.parse(saved);
@@ -2460,11 +2488,35 @@ export default function Appointment() {
       .sort((a, b2) => t24ToMinutes(a.t) - t24ToMinutes(b2.t));
   }, [bookingsByDate, selectedKey]);
 
-  const markNotificationRead = (id) => {
-    setNotifications((prev) => {
-      const notification = prev.find((n) => n.id === id);
-      if (!notification) return prev;
+const markNotificationRead = async (id) => {
 
+  const notification = notifications.find((n) => n.id === id);
+  if (!notification) return;
+
+  try {
+    await fetch(
+      "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/mark_as_read",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          patient: notification.patient,
+          patient_id: notification.pid,
+          phone: notification.phone,
+          email: notification.email,
+          date: notification.date,
+          time: notification.timeSlot
+        })
+      }
+    );
+  } catch (err) {
+    console.warn("Webhook error:", err);
+  }
+
+  setNotifications((prev) => {
+    const notification = prev.find((n) => n.id === id);
       // 🔥 1️⃣ Normalize DATE
       const parsedDate = new Date(notification.date);
       const dateKey = toKey(parsedDate); // YYYY-MM-DD
@@ -2599,18 +2651,18 @@ export default function Appointment() {
       {/* ✅ TOAST HERE */}
       <main className="mx-auto max-w-[1100px] px-6 py-7">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-extrabold text-black tracking-tight">
-              APPOINTMENTS
-            </h1>
-            <p className="text-sm text-black/55 mt-1">
-              Manage your appointment slots and bookings
-            </p>
-          </div>
+  <div>
+    <h1 className="text-3xl font-extrabold text-black tracking-tight">
+      APPOINTMENTS
+    </h1>
+    <p className="text-sm text-black/55 mt-1">
+      Manage your appointment slots and bookings
+    </p>
+  </div>
 
-
-
-        </div>
+  {/* Calendar / Slots buttons */}
+  <TopToggle />
+</div>
 
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard title="TODAY'S BOOKINGS" value={stats.todayBookings} subtitle="patients scheduled" borderColor={CYAN} iconBg={CYAN} icon={<FiCalendar />} />
