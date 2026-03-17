@@ -1,210 +1,4 @@
-
-
-
-// import React, { useMemo, useState } from "react";
-// import { useLocation, useNavigate } from "react-router-dom";
-// import {
-//   FiGrid,
-//   FiCalendar,
-//   FiUsers,
-//   FiShare2,
-//   FiRefreshCcw,
-//   FiCreditCard,
-//   FiSettings,
-//   FiUser,
-//   FiLogOut,
-//   FiX,
-//   FiChevronRight,
-// } from "react-icons/fi";
-
-// const CYAN = "#00B8DB";
-// const YELLOW = "#F0B100";
-// const DOCTOR_BASE = "/maindoctor";
-
-// export default function Sidebar() {
-//   const navigate = useNavigate();
-//   const { pathname } = useLocation();
-//   const [collapsed, setCollapsed] = useState(false);
-
-//   const items = useMemo(
-//     () => [
-//       { path: `${DOCTOR_BASE}/dashboard`, label: "Dashboard", icon: FiGrid },
-//       { path: `${DOCTOR_BASE}/appointment`, label: "Appointments", icon: FiCalendar },
-//       { path: `${DOCTOR_BASE}/patients`, label: "Patients", icon: FiUsers },
-//       { path: `${DOCTOR_BASE}/socialmedia`, label: "Social Media", icon: FiShare2 },
-//       { path: `${DOCTOR_BASE}/followups`, label: "Follow-ups", icon: FiRefreshCcw },
-//       { path: `${DOCTOR_BASE}/billing`, label: "Billing", icon: FiCreditCard },
-//       { path: `${DOCTOR_BASE}/settings`, label: "Settings", icon: FiSettings },
-//     ],
-//     []
-//   );
-
-//   const isActive = (path) => pathname === path || pathname.startsWith(path + "/");
-
-//   const safeNavigate = (to) => {
-//     if (to !== pathname) navigate(to);
-//   };
-
-//   // ✅ ONE EXACT ROW STYLE FOR COLLAPSED MODE (top/menu/footer all share this)
-//   const collapsedRow =
-//     "w-full flex justify-center px-3 py-2.5"; // <- SAME for every icon row
-
-//   // ✅ ONE EXACT ICON BOX FOR COLLAPSED MODE (top/menu/footer all share this)
-//   const collapsedIconBox =
-//     "h-9 w-9 rounded-md border-2 border-black bg-white flex items-center justify-center";
-
-//   return (
-//     <aside
-//       className={[
-//         "h-screen bg-white border-r border-black/10 flex flex-col transition-all duration-300",
-//         collapsed ? "w-[80px]" : "w-[260px]",
-//       ].join(" ")}
-//     >
-//       {/* TOP CONTROL */}
-//       <div className="border-b border-black/10">
-//         {!collapsed ? (
-//           <div className="px-3 py-3 flex justify-end">
-//             <button
-//               onClick={() => setCollapsed(true)}
-//               className="h-9 w-9 border-2 border-black rounded-md flex items-center justify-center hover:bg-black/5"
-//               title="Collapse sidebar"
-//               type="button"
-//             >
-//               <FiX />
-//             </button>
-//           </div>
-//         ) : (
-//           // ✅ COLLAPSED TOP ROW uses same wrapper + same icon box => aligned
-//           <button
-//             onClick={() => setCollapsed(false)}
-//             className={`${collapsedRow} hover:bg-black/5`}
-//             title="Expand sidebar"
-//             type="button"
-//           >
-//             <span className={collapsedIconBox}>
-//               <FiChevronRight />
-//             </span>
-//           </button>
-//         )}
-//       </div>
-
-//       {/* MENU */}
-//       <div className={collapsed ? "flex-1 overflow-y-auto" : "flex-1 overflow-y-auto px-3 py-3 space-y-2"}>
-//         {items.map(({ path, label, icon: Icon }) => {
-//           const active = isActive(path);
-
-//           if (collapsed) {
-//             // ✅ COLLAPSED: icons only, perfect straight line alignment
-//             return (
-//               <button
-//                 key={path}
-//                 onClick={() => safeNavigate(path)}
-//                 type="button"
-//                 className={`${collapsedRow} ${
-//                   active ? "bg-[#EAFBFF]" : "hover:bg-black/5"
-//                 }`}
-//                 title={label}
-//               >
-//                 <span className={collapsedIconBox}>
-//                   <Icon
-//                     className="text-[18px]"
-//                     style={{ color: active ? CYAN : "rgba(0,0,0,0.55)" }}
-//                   />
-//                 </span>
-//               </button>
-//             );
-//           }
-
-//           // ✅ EXPANDED: original style with labels
-//           return (
-//             <button
-//               key={path}
-//               onClick={() => safeNavigate(path)}
-//               type="button"
-//               className={[
-//                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm border-2 transition",
-//                 active
-//                   ? "bg-[#EAFBFF] border-black font-extrabold text-black"
-//                   : "bg-white border-transparent text-black/80 hover:bg-black/5 hover:border-black/10",
-//               ].join(" ")}
-//             >
-//               <span className="h-9 w-9 rounded-md border-2 border-black bg-white flex items-center justify-center shrink-0">
-//                 <Icon
-//                   className="text-[18px]"
-//                   style={{ color: active ? CYAN : "rgba(0,0,0,0.55)" }}
-//                 />
-//               </span>
-
-//               <span className="truncate">{label}</span>
-//             </button>
-//           );
-//         })}
-//       </div>
-
-//       {/* FOOTER */}
-//       <div className={collapsed ? "pb-3" : "px-3 pb-3 space-y-2"}>
-//         {/* PROFILE */}
-//         {!collapsed ? (
-//           <div className="rounded-lg border-2 border-black/10 bg-white p-3 flex items-center gap-3">
-//             <div
-//               className="h-10 w-10 rounded-full border-2 border-black flex items-center justify-center text-white shrink-0"
-//               style={{ background: `linear-gradient(90deg, ${CYAN}, ${YELLOW})` }}
-//             >
-//               <FiUser />
-//             </div>
-
-//             <div className="leading-tight">
-//               <div className="text-sm font-extrabold text-black">Dr. Sarah Chen</div>
-//               <div className="text-xs font-semibold text-[#00B8DB]">Cardiologist</div>
-//             </div>
-//           </div>
-//         ) : (
-//           // ✅ COLLAPSED PROFILE uses SAME wrapper + SAME icon box => aligned with arrow/menu
-//           <button
-//             type="button"
-//             title="Profile"
-//             onClick={() => safeNavigate(`${DOCTOR_BASE}/settings`)}
-//             className={`${collapsedRow} hover:bg-black/5`}
-//           >
-//             <span className={collapsedIconBox}>
-//               <span
-//                 className="h-7 w-7 rounded-full border-2 border-black flex items-center justify-center text-white"
-//                 style={{ background: `linear-gradient(90deg, ${CYAN}, ${YELLOW})` }}
-//               >
-//                 <FiUser className="text-[16px]" />
-//               </span>
-//             </span>
-//           </button>
-//         )}
-
-//         {/* LOGOUT */}
-//         {!collapsed ? (
-//           <button
-//             onClick={() => alert("Logout (demo)")}
-//             type="button"
-//             className="w-full rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-extrabold text-black flex items-center justify-center gap-2 hover:bg-black/5"
-//           >
-//             <FiLogOut />
-//             Logout
-//           </button>
-//         ) : (
-//           // ✅ COLLAPSED LOGOUT uses SAME wrapper + SAME icon box => aligned too
-//           <button
-//             onClick={() => alert("Logout (demo)")}
-//             type="button"
-//             title="Logout"
-//             className={`${collapsedRow} hover:bg-black/5`}
-//           >
-//             <span className={collapsedIconBox}>
-//               <FiLogOut />
-//             </span>
-//           </button>
-//         )}
-//       </div>
-//     </aside>
-//   );
-// }
-
+// 04/03/2026 - Worked By Abishek -  Changes  Sheduled Up Page Drop Down
 
 import React, { useMemo, useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -220,6 +14,7 @@ import {
   FiLogOut,
   FiX,
   FiChevronRight,
+  FiChevronDown,
 } from "react-icons/fi";
 
 const CYAN = "#00B8DB";
@@ -232,32 +27,45 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [doctor, setDoctor] = useState(null);
   const [photo, setPhoto] = useState("");
+  
+  // Initialize state based on the current URL
+  const [socialExpanded, setSocialExpanded] = useState(pathname.includes(`${DOCTOR_BASE}/socialmedia`));
 
-useEffect(() => {
-  const loadProfile = () => {
-    const savedDoctor = localStorage.getItem("doctorSettings");
-    const savedPhoto = localStorage.getItem("profilePhoto");
+  useEffect(() => {
+    const loadProfile = () => {
+      const savedDoctor = localStorage.getItem("doctorSettings");
+      const savedPhoto = localStorage.getItem("profilePhoto");
+      if (savedDoctor) setDoctor(JSON.parse(savedDoctor));
+      if (savedPhoto) setPhoto(savedPhoto);
+    };
+    loadProfile();
+    window.addEventListener("profileUpdated", loadProfile);
+    return () => window.removeEventListener("profileUpdated", loadProfile);
+  }, []);
 
-    if (savedDoctor) setDoctor(JSON.parse(savedDoctor));
-    if (savedPhoto) setPhoto(savedPhoto);
-  };
+  // UPDATED: Sync expansion state with pathname. 
+  // If we move to a different main section, the dropdown closes.
+  useEffect(() => {
+    if (pathname.includes(`${DOCTOR_BASE}/socialmedia`)) {
+      setSocialExpanded(true);
+    } else {
+      setSocialExpanded(false);
+    }
+  }, [pathname]);
 
-  // Load initially
-  loadProfile();
-
-  // 🔥 Listen for update event
-  window.addEventListener("profileUpdated", loadProfile);
-
-  return () => {
-    window.removeEventListener("profileUpdated", loadProfile);
-  };
-}, []);
   const items = useMemo(
     () => [
       { path: `${DOCTOR_BASE}/dashboard`, label: "Dashboard", icon: FiGrid },
       { path: `${DOCTOR_BASE}/appointment`, label: "Appointments", icon: FiCalendar },
       { path: `${DOCTOR_BASE}/patients`, label: "Patients", icon: FiUsers },
-      { path: `${DOCTOR_BASE}/socialmedia`, label: "Social Media", icon: FiShare2 },
+      { 
+        path: `${DOCTOR_BASE}/socialmedia`, 
+        label: "Social Media", 
+        icon: FiShare2,
+        children: [
+          { path: `${DOCTOR_BASE}/socialmedia/scheduled`, label: "Scheduled Up" }
+        ]
+      },
       { path: `${DOCTOR_BASE}/followups`, label: "Follow-ups", icon: FiRefreshCcw },
       { path: `${DOCTOR_BASE}/billing`, label: "Billing", icon: FiCreditCard },
       { path: `${DOCTOR_BASE}/settings`, label: "Settings", icon: FiSettings },
@@ -267,12 +75,8 @@ useEffect(() => {
 
   const isActive = (path) => {
     if (path === `${DOCTOR_BASE}/dashboard`) {
-      return (
-        pathname === `${DOCTOR_BASE}` ||
-        pathname === `${DOCTOR_BASE}/dashboard`
-      );
+      return pathname === `${DOCTOR_BASE}` || pathname === `${DOCTOR_BASE}/dashboard`;
     }
-
     return pathname === path || pathname.startsWith(path + "/");
   };
 
@@ -280,14 +84,14 @@ useEffect(() => {
     if (to !== pathname) navigate(to);
   };
 
-  // ✅ PERFECTLY CONSISTENT COLLAPSED STYLES
   const collapsedWrapper = "w-full flex justify-center py-2.5";
-  const collapsedIconBox = "h-9 w-9 rounded-md border-2 border-black bg-white flex items-center justify-center";
+  const collapsedIconBox = "h-9 w-9 rounded-md border-2 border-black bg-white flex items-center justify-center shrink-0";
 
   return (
     <aside
       className={[
-        "h-screen bg-white border-r border-black/10 flex flex-col transition-all duration-300",
+        // "h-screen bg-white border-r border-black/10 flex flex-col transition-all duration-300",
+        " h-screen sticky top-0 bg-white border-r border-black/10 flex flex-col transition-all duration-300",
         collapsed ? "w-[80px]" : "w-[260px]",
       ].join(" ")}
     >
@@ -305,11 +109,9 @@ useEffect(() => {
             </button>
           </div>
         ) : (
-          // ✅ COLLAPSED TOP CONTROL
           <button
             onClick={() => setCollapsed(false)}
             className={`${collapsedWrapper} hover:bg-black/5`}
-            title="Expand sidebar"
             type="button"
           >
             <span className={collapsedIconBox}>
@@ -320,41 +122,43 @@ useEffect(() => {
       </div>
 
       {/* MENU ITEMS */}
-      <div className="flex-1 overflow-y-auto">
-        {collapsed ? (
-          // ✅ COLLAPSED MENU - all icons perfectly aligned
-          <div className="py-1">
-            {items.map(({ path, label, icon: Icon }) => {
-              const active = isActive(path);
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className={collapsed ? "py-1" : "px-3 py-3 space-y-2"}>
+          {items.map((item) => {
+            const active = isActive(item.path);
+            const hasChildren = item.children && item.children.length > 0;
+            
+            const isDropdownOpen = hasChildren && socialExpanded;
+
+            if (collapsed) {
               return (
                 <button
-                  key={path}
-                  onClick={() => safeNavigate(path)}
-                  type="button"
-                  className={`${collapsedWrapper} ${active ? "bg-[#EAFBFF]" : "hover:bg-black/5"
-                    }`}
-                  title={label}
+                  key={item.path}
+                  onClick={() => safeNavigate(item.path)}
+                  className={`${collapsedWrapper} ${active ? "bg-[#EAFBFF]" : "hover:bg-black/5"}`}
+                  title={item.label}
                 >
                   <span className={collapsedIconBox}>
-                    <Icon
+                    <item.icon
                       className="text-[18px]"
                       style={{ color: active ? CYAN : "rgba(0,0,0,0.55)" }}
                     />
                   </span>
                 </button>
               );
-            })}
-          </div>
-        ) : (
-          // ✅ EXPANDED MENU
-          <div className="px-3 py-3 space-y-2">
-            {items.map(({ path, label, icon: Icon }) => {
-              const active = isActive(path);
-              return (
+            }
+
+            return (
+              <div key={item.path} className="flex flex-col gap-1">
                 <button
-                  key={path}
-                  onClick={() => safeNavigate(path)}
-                  type="button"
+                  onClick={() => {
+                    if (hasChildren) {
+                      setSocialExpanded(!socialExpanded);
+                      safeNavigate(item.path);
+                    } else {
+                      safeNavigate(item.path);
+                    }
+                  }}
                   className={[
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm border-2 transition",
                     active
@@ -363,48 +167,67 @@ useEffect(() => {
                   ].join(" ")}
                 >
                   <span className="h-9 w-9 rounded-md border-2 border-black bg-white flex items-center justify-center shrink-0">
-                    <Icon
+                    <item.icon
                       className="text-[18px]"
                       style={{ color: active ? CYAN : "rgba(0,0,0,0.55)" }}
                     />
                   </span>
-                  <span className="truncate">{label}</span>
+                  <span className="flex-1 text-left truncate">{item.label}</span>
+                  {hasChildren && (
+                    <span className="text-black/40">
+                      {isDropdownOpen ? <FiChevronDown /> : <FiChevronRight />}
+                    </span>
+                  )}
                 </button>
-              );
-            })}
-          </div>
-        )}
+
+                {/* CHILD ITEMS */}
+                {hasChildren && isDropdownOpen && (
+                  <div className="ml-12 flex flex-col gap-1 border-l-2 border-black/10 pl-2 mt-1">
+                    {item.children.map((child) => {
+                      const childActive = pathname === child.path;
+                      return (
+                        <button
+                          key={child.path}
+                          onClick={() => safeNavigate(child.path)}
+                          className={[
+                            "text-left px-3 py-2 rounded-md text-xs transition-all",
+                            childActive
+                              ? "bg-[#EAFBFF] text-black font-extrabold border-l-4 border-[#00B8DB]"
+                              : "text-black/60 hover:bg-black/5 hover:text-black",
+                          ].join(" ")}
+                        >
+                          {child.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* FOOTER SECTION */}
       <div className="border-t border-black/10">
         {collapsed ? (
-          // ✅ COLLAPSED FOOTER - FIXED: EXACT SAME STRUCTURE AS OTHER ICONS
           <div className="py-1">
-            {/* Profile - NOW PERFECTLY ALIGNED: Same exact structure as other icons */}
             <button
-              type="button"
-              title="Profile"
               onClick={() => safeNavigate(`${DOCTOR_BASE}/settings`)}
               className={`${collapsedWrapper} hover:bg-black/5`}
+              title="Profile"
             >
               <span
                 className={collapsedIconBox}
-                style={{
-                  borderColor: "black",
-                  background: `linear-gradient(90deg, ${CYAN}, ${YELLOW})`
-                }}
+                style={{ background: `linear-gradient(90deg, ${CYAN}, ${YELLOW})` }}
               >
                 <FiUser className="text-white text-[18px]" />
               </span>
             </button>
-
-            {/* Logout - Same exact structure */}
             <button
               onClick={() => alert("Logout (demo)")}
-              type="button"
-              title="Logout"
               className={`${collapsedWrapper} hover:bg-black/5`}
+              title="Logout"
             >
               <span className={collapsedIconBox}>
                 <FiLogOut className="text-[18px]" />
@@ -412,52 +235,36 @@ useEffect(() => {
             </button>
           </div>
         ) : (
-          // ✅ EXPANDED FOOTER
-          <div className="rounded-lg border-2 border-black/10 bg-white p-3 flex gap-3">
-            <div className="h-10 w-10 rounded-full border-2 border-black overflow-hidden shrink-0">
-              {photo ? (
-                <img src={photo} alt="Doctor" className="h-full w-full object-cover" />
-              ) : (
-                <div
-                  className="h-full w-full flex items-center justify-center text-white"
-                  style={{ background: `linear-gradient(90deg, ${CYAN}, ${YELLOW})` }}
-                >
-                  <FiUser />
-                </div>
-              )}
-            </div>
-
-            <div className="flex-1 min-w-0 space-y-3">
-
-              {/* User info */}
-              <div className="min-w-0">
-
-
-
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-extrabold text-black truncate">
-                    {doctor?.fullName || "Doctor Name"}
+          <div className="m-3 p-3 rounded-lg border-2 border-black/10 bg-white space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full border-2 border-black overflow-hidden shrink-0">
+                {photo ? (
+                  <img src={photo} alt="Doc" className="h-full w-full object-cover" />
+                ) : (
+                  <div
+                    className="h-full w-full flex items-center justify-center text-white"
+                    style={{ background: `linear-gradient(90deg, ${CYAN}, ${YELLOW})` }}
+                  >
+                    <FiUser />
                   </div>
-
-                  <div className="text-xs font-semibold text-[#00B8DB] truncate">
-                    {doctor?.specialization || "Specialization"}
-                  </div>
-                </div>
-
+                )}
               </div>
-
-              {/* Logout */}
-              <button
-                onClick={() => alert("Logout (demo)")}
-                className="w-full h-9 rounded-md border-2 border-black bg-white text-sm font-extrabold text-black flex items-center justify-center gap-2 hover:bg-black/5 transition"
-              >
-                <FiLogOut />
-                Logout
-              </button>
-
+              <div className="min-w-0">
+                <div className="text-sm font-extrabold text-black truncate">
+                  {doctor?.fullName || "Doctor Name"}
+                </div>
+                <div className="text-[10px] font-semibold text-[#00B8DB] truncate uppercase tracking-wider">
+                  {doctor?.specialization || "Specialization"}
+                </div>
+              </div>
             </div>
-
-
+            <button
+              onClick={() => alert("Logout (demo)")}
+              className="w-full h-9 rounded-md border-2 border-black bg-white text-sm font-extrabold text-black flex items-center justify-center gap-2 hover:bg-black/5 transition"
+            >
+              <FiLogOut />
+              Logout
+            </button>
           </div>
         )}
       </div>

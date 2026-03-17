@@ -1,4 +1,6 @@
-  import React, { useMemo, useRef, useState, useEffect } from "react";
+ // 11/03/2026 - Create and Work By Abishek and Rithanya
+ 
+ import React, { useMemo, useRef, useState, useEffect } from "react";
   import {
     FiUser,
     FiHome,
@@ -11,15 +13,19 @@
     FiClock,
     FiShield,
     FiChevronDown,
+    FiFileText,
     FiX,
+     FiInfo,
   } from "react-icons/fi";
   import { FaRupeeSign, FaBolt } from "react-icons/fa";
+  import useSettings from "./useSettings";
 
   const PAGE_BG = "#FEFCE8";
   const CYAN = "#00B8DB";
   const YELLOW = "#F0B100";
   const GREEN = "#00C950";
   const BLACK = "#0D0D0D";
+
 
   const TabButton = ({ active, icon, label, onClick }) => (
     <button
@@ -162,6 +168,7 @@
     const [tab, setTab] = useState("doctor"); // doctor | clinic | billing | notifications
     const [saving, setSaving] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const { settings, loading } = useSettings();
 
     // --- Workable photo upload state ---
     // const fileRef = useRef(null);
@@ -186,6 +193,7 @@ const [photoFile, setPhotoFile] = useState(null);
       name: "Heart Care Clinic",
       address: "123 Medical Street, Mumbai, Maharashtra 400001",
       phone: "+91 22 1234 5678",
+      email: ""
     });
 
     // ---- Billing Settings ----
@@ -243,6 +251,45 @@ const [photoFile, setPhotoFile] = useState(null);
       if (savedHospital) setHospital(JSON.parse(savedHospital));
     }, []);
 
+    useEffect(() => {
+      if (!settings || loading) return;
+
+      setHospital((prev) => ({
+        ...prev,
+        logo: settings.logo || null,
+        sign: settings.sign || null,
+        seal: settings.seal || null
+      }));
+    }, [settings, loading]);
+
+  useEffect(() => {
+  if (!settings || loading) return;
+
+  setDoctor(prev => ({
+    ...prev,
+    fullName: settings.doctorName || "",
+    email: settings.email || "",
+    phone: settings.phone || "",
+    specialization: settings.specialization || "",
+    qualification: settings.qualification || "",
+    experience: settings.experience || ""
+  }));
+
+  setClinic(prev => ({
+    ...prev,
+    name: settings.clinicName || "",
+    address: settings.clinicAddress || "",
+    phone: settings.clinicPhone || "",
+    email: settings.clinicEmail || ""
+  }));
+
+  setBilling(prev => ({
+    ...prev,
+    defaultFee: settings.defaultFees || "",
+    currency: settings.currency || "Indian Rupee (INR)"
+  }));
+
+}, [settings, loading]);
 
     const toggleMethod = (m) => {
       setBilling((prev) => {
@@ -252,7 +299,8 @@ const [photoFile, setPhotoFile] = useState(null);
     };
 
    const stripPhone = (phone) => {
-  return phone.replace(/[^\d+]/g, "");
+  if (!phone) return "";
+  return String(phone).replace(/[^\d+]/g, "");
 };
   const saveChanges = async () => {
     setSaving(true);
@@ -297,9 +345,17 @@ formData.append("notify_appointment", notify.appointment);
 formData.append("notify_payment", notify.payment);
     
 
-        if (hospital.logo) formData.append("logo", hospital.logo);
-        if (hospital.sign) formData.append("sign", hospital.sign);
-        if (hospital.seal) formData.append("seal", hospital.seal);
+        if (hospital.logo instanceof File) {
+  formData.append("logo", hospital.logo);
+}
+
+if (hospital.sign instanceof File) {
+  formData.append("sign", hospital.sign);
+}
+
+if (hospital.seal instanceof File) {
+  formData.append("seal", hospital.seal);
+}
         if (photoFile) formData.append("profilePhoto", photoFile);
 
         await fetch(
@@ -321,7 +377,7 @@ formData.append("notify_payment", notify.payment);
       setShowSuccess(true);
 
 
-    }, 500);
+    }, 5);
   };
     const openFilePicker = () => fileRef.current?.click();
 
@@ -411,8 +467,8 @@ const removePhoto = () => {
             />
             <TabButton
     active={tab === "hospital"}
-    icon={<FiHome />}
-    label="Hospital Details"
+    icon={<FiFileText />}
+    label="Clinical Documents"
     onClick={() => setTab("hospital")}
   />
           </div>
@@ -745,13 +801,49 @@ const removePhoto = () => {
               </div>
             )}
           {tab === "hospital" && (
-    <SectionShell
-      borderColor="border-[#00B8DB]"
-      title="Hospital Details"
-      subtitle="Information printed in patient reports"
-      iconBoxBg="bg-[#00B8DB]"
-      icon={<FiHome className="text-black text-xl" />}
-    >
+    // <SectionShell
+    //   borderColor="border-[#00B8DB]"
+    //   title="Clinical Documents"
+    //   subtitle="Documents used in patient reports"
+    //   iconBoxBg="bg-[#00B8DB]"
+    //   icon={<FiHome className="text-black text-xl" />}
+    // >
+
+<SectionShell
+  borderColor="border-[#00B8DB]"
+  title={
+    <div className="flex items-center gap-2 relative group">
+      Clinical Documents
+
+     <div className="cursor-pointer text-black/70 hover:text-black text-lg">
+  <FiInfo />
+</div>
+
+    <div className="
+  absolute left-full top-1/2 -translate-y-1/2 ml-3
+  whitespace-nowrap
+  text-[8px]
+  font-medium
+  bg-[#EAFBFF]
+  px-3 py-1.5
+  rounded
+  shadow-lg
+  opacity-0
+  pointer-events-none
+  group-hover:opacity-100
+  transition-all duration-150
+  z-50
+">
+  Uploaded clinical documents will be automatically applied to patient reports and delivered via Email and Telegram.
+</div>
+
+    </div>
+  }
+  subtitle="Documents used in patient reports"
+  iconBoxBg="bg-[#00B8DB]"
+  icon={<FiFileText className="text-black text-xl" />}
+>
+
 
       {/* hospital settings  page */}
 
@@ -773,7 +865,16 @@ const removePhoto = () => {
 
         {hospital.logo ? (
           <>
-            <img src={URL.createObjectURL(hospital.logo)} className="h-full object-contain" />
+            <img
+              src={
+  hospital.logo
+    ? hospital.logo instanceof File
+      ? URL.createObjectURL(hospital.logo)
+      : hospital.logo
+    : ""
+}
+              className="h-full object-contain"
+            />
 
             <button
               type="button"
@@ -808,6 +909,7 @@ const removePhoto = () => {
             ...p,
             logo: file
           }));
+          e.target.value = ""; 
 
         }}
       />
@@ -835,7 +937,14 @@ const removePhoto = () => {
 
         {hospital.sign ? (
           <>
-            <img src={URL.createObjectURL(hospital.sign)} className="h-full object-contain" />
+            <img
+  src={
+    hospital.sign instanceof File
+      ? URL.createObjectURL(hospital.sign)
+      : hospital.sign
+  }
+  className="h-full object-contain"
+/>  
 
             <button
               type="button"
@@ -845,6 +954,7 @@ const removePhoto = () => {
                   ...p,
                   sign: null
                 }));
+                e.target.value = ""; 
               }}
               className="absolute top-1 right-1 bg-white rounded-full shadow p-1"
             >
@@ -870,7 +980,7 @@ const removePhoto = () => {
             ...p,
             sign: file
           }));
-
+          e.target.value = ""; 
         }}
       />
 
@@ -897,7 +1007,14 @@ const removePhoto = () => {
 
         {hospital.seal ? (
           <>
-            <img src={URL.createObjectURL(hospital.seal)} className="h-full object-contain" />
+            <img
+  src={
+    hospital.seal instanceof File
+      ? URL.createObjectURL(hospital.seal)
+      : hospital.seal
+  }
+  className="h-full object-contain"
+/>
 
             <button
               type="button"

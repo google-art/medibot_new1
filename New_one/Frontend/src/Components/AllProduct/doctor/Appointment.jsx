@@ -1,3 +1,5 @@
+//  12/03/2026  Worked By Abishek Intern   Changes - Manage Slot Button Upgrade
+
 
 
 // import React, { useEffect, useMemo, useState } from "react";
@@ -1830,18 +1832,17 @@
 // }
 
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   FiCalendar,
   FiClock,
-  FiBell,
-  FiCheck,
   FiChevronLeft,
   FiChevronRight,
   FiChevronDown,
   FiPlus,
   FiX,
   FiEdit2,
+  FiCheck
 } from "react-icons/fi";
 
 const PAGE_BG = "#FEFCE8";
@@ -2141,115 +2142,115 @@ export default function Appointment() {
 
   const [view, setView] = useState("slots");
   const [showManageSlots, setShowManageSlots] = useState(true);
-
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem("notifications");
-    return saved ? JSON.parse(saved) : [];
-  });
-
-useEffect(() => {
-
-  const fetchNotifications = async () => {
-
-    try {
-
-      const res = await fetch(
-        "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/notification",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json"
-          }
-        }
-      );
-
-      if (!res.ok) {
-        console.warn("Webhook not active yet...");
-        return;
-      }
-
-      const data = await res.json();
-
-      if (!Array.isArray(data)) return;
-
-      const formattedNotifications = data.map((item, index) => {
-
-        const dateParts = item["Slot booked date"]?.split("-") || [];
-
-        const formattedDate =
-          dateParts.length === 3
-            ? `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`
-            : "";
-
-        return {
-          id: item.row_number || index,
-          patient: item["Name"] || "Unknown",
-          pid: item["Patient Id"] || "N/A",
-          phone: item["Phone Number "] || "N/A",
-          email: item["Email"] || "N/A",
-          date: formattedDate,
-          timeSlot: item["Slot Booked time"] || "00:00",
-          via: "CHATBOT",
-          bookedAt: new Date().toLocaleString(),
-          read: false
-        };
-
-      });
-
-      setNotifications((prev) => {
-
-        const existingIds = new Set(prev.map(n => n.id));
-
-        const newOnes = formattedNotifications.filter(
-          n => !existingIds.has(n.id)
-        );
-
-        const updated = [...prev, ...newOnes];
-
-        localStorage.setItem("notifications", JSON.stringify(updated));
-
-        return updated;
-
-      });
-
-    } catch (error) {
-      console.warn("n8n test webhook not running");
-    }
-
-  };
-
-  fetchNotifications();
-
-  const interval = setInterval(fetchNotifications, 10000);
-
-  return () => clearInterval(interval);
-
-}, []);
-  const [hoursByDate, setHoursByDate] = useState(() => {
+  
+  const fetchingRef = useRef(false);
+    const [hoursByDate, setHoursByDate] = useState(() => {
     const saved = localStorage.getItem("hoursByDate");
     if (saved) return JSON.parse(saved);
 
     return {}; // empty initially
   });
 
-  const [bookingsByDate, setBookingsByDate] = useState(() => {
-    const saved = localStorage.getItem("bookingsByDate");
-    if (saved) return JSON.parse(saved);
+const [bookingsByDate, setBookingsByDate] = useState({});
 
-    // fallback initial demo data
-    return {
-      "2026-02-05": {
-        "09:00": {
-          patient: "Rajesh Kumar",
-          pid: "P001",
-          phone: "+91 98765 43210",
-          email: "rajesh@example.com",
-          bookedAt: "2/5/2026, 10:12:17 AM",
-          via: "CHATBOT",
-        },
-      },
+
+useEffect(() => {
+
+  const fetchBookings = async () => {
+
+    if (fetchingRef.current) return;
+fetchingRef.current = true;
+ 
+
+    try {
+
+      const res = await fetch("http://localhost:3001/api/medibot/appointments")
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+      if (!Array.isArray(data)) return;
+
+      const updated = {};
+
+data.forEach((item) => {
+
+  const dateParts = item["Slot booked date"]?.split("-") || [];
+
+  if (dateParts.length !== 3) return;
+
+  const dateKey = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+
+  let timeSlot = item["Slot Booked time"] || "00:00";
+
+  if (timeSlot.length > 5) {
+    timeSlot = new Date(`1970-01-01T${timeSlot}`)
+      .toTimeString()
+      .slice(0, 5);
+  }
+
+    const dayConfig = hoursByDate[dateKey];
+
+if (!dayConfig || !dayConfig.open) return;
+
+const allowedSlots = buildSlotsFromRanges(dayConfig.ranges || []);
+
+  if (!allowedSlots.includes(timeSlot)) {
+    console.warn("Invalid slot from webhook:", timeSlot);
+    return;
+  }
+
+  if (!updated[dateKey]) updated[dateKey] = {};
+
+  updated[dateKey][timeSlot] = {
+    patient: item["Name"] || "Unknown",
+    pid: item["Patient Id"] || "N/A",
+    phone: item["Phone Number"] || item.phone || "N/A",
+    email: item["Email"] || "N/A",
+    bookedAt: new Date().toLocaleString(),
+    via: "CHATBOT"
+  };
+
+});
+
+setBookingsByDate(prev => {
+
+  const merged = { ...prev };
+
+  Object.keys(updated).forEach(date => {
+    merged[date] = {
+      ...(merged[date] || {}),
+      ...updated[date]
     };
   });
+
+  return merged;
+
+}); 
+
+    } catch (err) {
+
+  console.warn("Webhook not active");
+
+} finally {
+  fetchingRef.current = false;
+}
+
+  };
+
+ fetchBookings();
+
+  // 🔥 auto refresh every 5 seconds
+  const interval = setInterval(fetchBookings, 5000);
+
+  // 🔥 cleanup when component unmounts
+  return () => clearInterval(interval);
+
+}, [hoursByDate]);
+
+
+
+
   useEffect(() => {
     localStorage.setItem(
       "bookingsByDate",
@@ -2488,121 +2489,7 @@ useEffect(() => {
       .sort((a, b2) => t24ToMinutes(a.t) - t24ToMinutes(b2.t));
   }, [bookingsByDate, selectedKey]);
 
-const markNotificationRead = async (id) => {
 
-  const notification = notifications.find((n) => n.id === id);
-  if (!notification) return;
-
-  try {
-    await fetch(
-      "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/mark_as_read",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          patient: notification.patient,
-          patient_id: notification.pid,
-          phone: notification.phone,
-          email: notification.email,
-          date: notification.date,
-          time: notification.timeSlot
-        })
-      }
-    );
-  } catch (err) {
-    console.warn("Webhook error:", err);
-  }
-
-  setNotifications((prev) => {
-    const notification = prev.find((n) => n.id === id);
-      // 🔥 1️⃣ Normalize DATE
-      const parsedDate = new Date(notification.date);
-      const dateKey = toKey(parsedDate); // YYYY-MM-DD
-
-      // 🔥 2️⃣ Normalize TIME (force 24hr HH:mm)
-      let timeSlot = notification.timeSlot;
-      if (timeSlot.length > 5) {
-        timeSlot = new Date(`1970-01-01T${timeSlot}`)
-          .toTimeString()
-          .slice(0, 5);
-      }
-
-      // 🔥 3️⃣ Switch UI to that exact date
-      setSelectedKey(dateKey);
-
-      // 🔥 4️⃣ Ensure slot exists in hours range
-      setHoursByDate((prevHours) => {
-        const existing = prevHours[dateKey];
-        const slotEnd = minutesToT24(t24ToMinutes(timeSlot) + 15);
-
-        if (!existing) {
-          return {
-            ...prevHours,
-            [dateKey]: {
-              open: true,
-              ranges: [{ start: timeSlot, end: slotEnd }],
-            },
-          };
-        }
-
-        const slotMin = t24ToMinutes(timeSlot);
-
-        const inside = existing.ranges.some((r) => {
-          const startMin = t24ToMinutes(r.start);
-          const endMin = t24ToMinutes(r.end);
-          return slotMin >= startMin && slotMin < endMin;
-        });
-
-        if (!inside) {
-          return {
-            ...prevHours,
-            [dateKey]: {
-              ...existing,
-              open: true,
-              ranges: [
-                ...existing.ranges,
-                { start: timeSlot, end: slotEnd },
-              ],
-            },
-          };
-        }
-
-        return prevHours;
-      });
-
-      // 🔥 5️⃣ Insert booking EXACTLY at that time
-      setBookingsByDate((prevBookings) => {
-        const dayBookings = prevBookings[dateKey] || {};
-
-        if (dayBookings[timeSlot]) {
-          return prevBookings; // prevent duplicate
-        }
-
-        return {
-          ...prevBookings,
-          [dateKey]: {
-            ...dayBookings,
-            [timeSlot]: {
-              patient: notification.patient,
-              pid: notification.pid,
-              phone: notification.phone,
-              email: notification.email,
-              bookedAt: notification.bookedAt,
-              via: notification.via || "CHATBOT",
-            },
-          },
-        };
-      });
-
-      // 🔥 6️⃣ Remove notification
-      const updated = prev.filter((n) => n.id !== id);
-      localStorage.setItem("notifications", JSON.stringify(updated));
-
-      return updated;
-    });
-  };
 
   const navMonth = (dir) => setMonthCursor((p) => new Date(p.getFullYear(), p.getMonth() + dir, 1));
 
@@ -2670,48 +2557,7 @@ const markNotificationRead = async (id) => {
           <StatCard title="TOTAL SLOTS" value={stats.totalSlots} subtitle="slots configured" borderColor={YELLOW} iconBg={YELLOW} icon={<FiClock />} />
         </div>
 
-        {/* Notifications */}
-        <div className="mt-6 border-2 border-black bg-white rounded-md">
-          <div className="p-4 border-b border-black/10 flex items-center justify-between">
-            <SectionTitle icon={<FiBell />} title="NEW NOTIFICATIONS" />
-          </div>
-
-          <div className="p-4 space-y-3">
-            {notifications.length === 0 ? (
-              <div className="text-sm text-black/60">
-                No notifications.
-              </div>
-            ) : (
-              notifications.map((n) => (
-                <div
-                  key={n.id}
-                  className="border-2 border-black rounded-sm p-4 flex items-center justify-between"
-                >
-                  {/* LEFT SIDE */}
-                  <div className="flex flex-col">
-                    <div className="text-sm font-semibold text-black">
-                      {n.patient} – New appointment booked
-                    </div>
-
-                    <div className="text-xs text-black/50 mt-1">
-                      {n.date} • {timeLabel(n.timeSlot)}
-                    </div>
-                  </div>
-
-                  {/* RIGHT SIDE BUTTON */}
-                  <button
-                    onClick={() => markNotificationRead(n.id)}
-                    className={`h-9 w-10 border-2 border-black rounded-sm inline-flex items-center justify-center ${n.read ? "bg-[#B9F6CC]" : "bg-[#00B8DB]"
-                      }`}
-                    title={n.read ? "Read" : "Mark as read"}
-                  >
-                    <FiCheck className="text-black" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        
 
 
         {view === "slots" ? (

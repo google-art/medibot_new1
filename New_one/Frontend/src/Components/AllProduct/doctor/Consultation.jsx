@@ -1,5 +1,7 @@
+// 12/03/2026   - Worked By Abishek and Rithanya  - Settings Load ,  Data Sending 
+
 import React, { useEffect, useMemo, useState } from "react";
-import html2pdf from "html2pdf.js";
+
 import {
   FiActivity,
   FiArrowLeft,
@@ -14,7 +16,9 @@ import {
   FiClock,
   FiX,
   FiUpload,
+
 } from "react-icons/fi";
+import useSettings from "./useSettings";
 
 const PAGE_BG = "#FEFCE8";
 
@@ -27,10 +31,7 @@ function formatTime(totalSeconds) {
 }
 
 // very simple WhatsApp share (works best on mobile / WhatsApp Desktop)
-const openWhatsApp = (text) => {
-  const url = `https://wa.me/?text=${encodeURIComponent(text || "")}`;
-  window.open(url, "_blank", "noopener,noreferrer");
-};
+
 
 /* ---------- atoms ---------- */
 
@@ -233,6 +234,7 @@ export default function Consultation() {
   const [step, setStep] = useState(0);
   const [filled, setFilled] = useState(false);
   const [aiText, setAiText] = useState("");
+  // const [settingsData, setSettingsData] = useState({});
   const [report, setReport] = useState({
     patient: "",
     medication: "",
@@ -246,6 +248,16 @@ export default function Consultation() {
   const [isCopied, setIsCopied] = useState(false);
   const [isSavingReport, setIsSavingReport] = useState(false);
   const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+  if (!toast) return;
+
+  const timer = setTimeout(() => {
+    setToast(null);
+  }, 3000); // auto hide after 3 sec
+
+  return () => clearTimeout(timer);
+}, [toast]);
 
   // History UI (disabled for existing consultation)
   const [showHistory, setShowHistory] = useState(false);
@@ -282,6 +294,8 @@ export default function Consultation() {
 
   const transcriptText = aiText;
 
+  const { settings, loading } = useSettings();
+
 
 
   const canSendToAI = recordingTime > 0 && !sent;
@@ -302,7 +316,7 @@ export default function Consultation() {
     };
 
     mediaRecorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+      const blob = new Blob(chunksRef.current, { type: "audio/mp4" });
       const url = URL.createObjectURL(blob);
 
       setAudioBlob(blob);
@@ -337,7 +351,7 @@ export default function Consultation() {
       setStep(1); // Audio Received
 
       const formData = new FormData();
-      formData.append("audio", audioBlob);
+      formData.append("audio", audioBlob, "recording.mp4");
       formData.append("height", vitals?.height || "");
       formData.append("weight", vitals?.weight || "");
       formData.append("bp", vitals?.bp || "");
@@ -359,21 +373,23 @@ export default function Consultation() {
       setStep(3); // Extracting
 
       // ✅ Handle ALL possible formats
-      let data = null;
+      let data = result;
 
+      // If response is array
       if (Array.isArray(result)) {
         data = result[0];
-      } else if (Array.isArray(result?.data)) {
-        data = result.data[0];
-      } else if (result?.Patient_name) {
-        data = result;
       }
 
-      if (!data) {
-        console.error("Invalid webhook structure:", result);
-        throw new Error("Invalid webhook response structure");
+      // If response wrapped in data[]
+      if (result?.data && Array.isArray(result.data)) {
+        data = result.data[0];
       }
-      if (!data) throw new Error("Invalid webhook response");
+
+      console.log("Parsed webhook data:", data);
+
+      if (!data) {
+        throw new Error("Invalid webhook response");
+      }
 
       setReport({
         patient: data.Patient_name || "",
@@ -413,6 +429,8 @@ export default function Consultation() {
     setUploadedFile(f);
   };
 
+
+
   const buildShareText = () => {
     const lines = [
       `Medical Report`,
@@ -431,7 +449,6 @@ export default function Consultation() {
       `- Temp: ${vitals.temp || "—"}`,
       `- Pulse: ${vitals.pulse || "—"}`,
       "",
-      `Diagnosis: ${report?.diagnosis || "—"}`,
       `Medication: ${report?.medication || "—"}`,
       `Symptoms: ${report?.symptoms || "—"}`,
       `Notes: ${report?.notes || "—"}`,
@@ -442,220 +459,72 @@ export default function Consultation() {
 
     return lines.join("\n");
   };
-const generatePatientPDF = async () => {
-
-  const html = `
-  <div style="
-      font-family: Arial, sans-serif;
-      padding:40px;
-      width:100%;
-      color:#333;
-      background:#ffffff;
-  ">
-
-  <!-- HEADER -->
-  <div style="
-      text-align:center;
-      padding-bottom:15px;
-      border-bottom:3px solid #2b6cb0;
-      margin-bottom:30px;
-  ">
-      <h1 style="
-          margin:0;
-          color:#2b6cb0;
-          letter-spacing:1px;
-      ">
-          Patient Medical Report
-      </h1>
-  </div>
 
 
-  <!-- PATIENT INFORMATION -->
-  <div style="
-      background:#f5f9ff;
-      border:1px solid #d9e6ff;
-      border-radius:6px;
-      padding:15px;
-      margin-bottom:25px;
-  ">
-
-      <table style="width:100%; border-collapse:collapse;">
-          <tr>
-              <td style="font-weight:bold; width:200px;">Patient Name</td>
-              <td>${patientName}</td>
-          </tr>
-          <tr>
-              <td style="font-weight:bold;">Patient ID</td>
-              <td>${patientId}</td>
-          </tr>
-      </table>
-
-  </div>
-
-
-  <!-- VITALS -->
-  <h3 style="
-      color:#2b6cb0;
-      margin-bottom:10px;
-      border-bottom:2px solid #e2e8f0;
-      padding-bottom:5px;
-  ">
-      Vitals
-  </h3>
-
-  <table style="
-      width:100%;
-      border-collapse:collapse;
-      margin-bottom:25px;
-      font-size:14px;
-  ">
-
-      <tr style="background:#edf2ff;">
-          <td style="padding:10px; font-weight:bold;">Height</td>
-          <td style="padding:10px;">${vitals.height || "-"}</td>
-
-          <td style="padding:10px; font-weight:bold;">Weight</td>
-          <td style="padding:10px;">${vitals.weight || "-"}</td>
-      </tr>
-
-      <tr>
-          <td style="padding:10px; font-weight:bold;">Blood Pressure</td>
-          <td style="padding:10px;">${vitals.bp || "-"}</td>
-
-          <td style="padding:10px; font-weight:bold;">Temperature</td>
-          <td style="padding:10px;">${vitals.temp || "-"}</td>
-      </tr>
-
-      <tr style="background:#edf2ff;">
-          <td style="padding:10px; font-weight:bold;">Pulse</td>
-          <td style="padding:10px;">${vitals.pulse || "-"}</td>
-          <td></td>
-          <td></td>
-      </tr>
-
-  </table>
-
-
-  <!-- SYMPTOMS -->
-  <div style="margin-bottom:20px;">
-      <h3 style="
-          color:#2b6cb0;
-          border-bottom:1px solid #e2e8f0;
-          padding-bottom:5px;
-      ">
-          Symptoms
-      </h3>
-
-      <p style="
-          margin-top:8px;
-          line-height:1.6;
-      ">
-          ${report.symptoms || "-"}
-      </p>
-  </div>
-
-
-  <!-- MEDICATION -->
-  <div style="margin-bottom:20px;">
-      <h3 style="
-          color:#2b6cb0;
-          border-bottom:1px solid #e2e8f0;
-          padding-bottom:5px;
-      ">
-          Medication
-      </h3>
-
-      <p style="
-          margin-top:8px;
-          line-height:1.6;
-      ">
-          ${report.medication || "-"}
-      </p>
-  </div>
-
-
-  <!-- DOCTOR NOTES -->
-  <div style="margin-bottom:20px;">
-      <h3 style="
-          color:#2b6cb0;
-          border-bottom:1px solid #e2e8f0;
-          padding-bottom:5px;
-      ">
-          Doctor Notes
-      </h3>
-
-      <p style="
-          margin-top:8px;
-          line-height:1.6;
-      ">
-          ${report.notes || "-"}
-      </p>
-  </div>
-
-
-  <!-- FOLLOW UP -->
-  <div>
-      <h3 style="
-          color:#2b6cb0;
-          border-bottom:1px solid #e2e8f0;
-          padding-bottom:5px;
-      ">
-          Follow Up
-      </h3>
-
-      <p style="
-          margin-top:8px;
-          line-height:1.6;
-      ">
-          ${report.followup || "-"}
-      </p>
-  </div>
-
-  </div>
-  `;
-
-
-  const pdfBlob = await html2pdf()
-    .set({
-      margin: 10,
-      filename: "patient-report.pdf",
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-    })
-    .from(html)
-    .outputPdf("blob");
-
-  return pdfBlob;
-};
   const handleSaveAndSend = async () => {
     if (!filled || isSavingReport) return;
+
+    if (loading || !settings) {
+      alert("Settings not loaded yet");
+      return;
+    }
+
+
 
     try {
       setIsSavingReport(true);
 
       const formData = new FormData();
-      const pdfBlob = await generatePatientPDF();
-      formData.append("pdfReport", pdfBlob, "patient-report.pdf");
 
-      formData.append("patientId", patientId);
-      formData.append("patientName", patientName);
-      formData.append("patientEmail", patientEmail);
-      formData.append("patientPhone", patientPhone);
-      formData.append("height", vitals.height || "");
-      formData.append("weight", vitals.weight || "");
-      formData.append("bp", vitals.bp || "");
-      formData.append("temp", vitals.temp || "");
-      formData.append("pulse", vitals.pulse || "");
 
-      formData.append("diagnosis", report?.diagnosis || "");
+
+      // SETTINGS DATA
+      formData.append("doctorName", settings?.doctorName || "");
+      formData.append("clinicName", settings?.clinicName || "");
+      formData.append("address", settings?.clinicAddress || "");
+      formData.append("contact", settings?.clinicPhone || "");
+
+
+
+      // SETTINGS IMAGES (URL)
+      // formData.append("logo", settings?.logo || "");
+      // formData.append("sign", settings?.sign || "");
+      // formData.append("seal", settings?.seal || "");
+
+      const appendImageAsBinary = async (key, url) => {
+        if (!url) return;
+
+        const response = await fetch(url);
+        const blob = await response.blob();
+
+        const fileName = url.split("/").pop() || `${key}.png`;
+
+        formData.append(key, blob, fileName);
+      };
+
+      await appendImageAsBinary("1_logo", settings?.logo);
+      await appendImageAsBinary("2_sign", settings?.sign);
+      await appendImageAsBinary("3_seal", settings?.seal);
+      // PATIENT DETAILS
+      formData.append("patientId", patientId || "");
+      formData.append("patientName", patientName || "");
+      formData.append("patientEmail", patientEmail || "");
+      formData.append("patientPhone", patientPhone || "");
+
+      // VITALS
+      formData.append("height", vitals?.height || "");
+      formData.append("weight", vitals?.weight || "");
+      formData.append("bp", vitals?.bp || "");
+      formData.append("temp", vitals?.temp || "");
+      formData.append("pulse", vitals?.pulse || "");
+
+      // REPORT
       formData.append("medication", report?.medication || "");
       formData.append("symptoms", report?.symptoms || "");
-      formData.append("notes", report?.notes || "");
+      formData.append("doctorNotes", report?.notes || "");
       formData.append("followup", report?.followup || "");
 
-      if (uploadedFile) {
-        formData.append("reportFile", uploadedFile);
-      }
+
 
       const res = await fetch(
         "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/patient_details_save_and_send",
@@ -665,14 +534,15 @@ const generatePatientPDF = async () => {
         }
       );
 
-      if (!res.ok) throw new Error("Webhook failed");
-
-      setToast({
-        type: "success",
-        message: "Medical report sent successfully!",
-      });
-
-      openWhatsApp(buildShareText());
+      // if request reached server and we got response
+      if (res) {
+        setToast({
+          type: "success",
+          message: "Medical report sent successfully!",
+        });
+      } else {
+        throw new Error("No response from server");
+      }
 
     } catch (err) {
       console.error("❌ Save failed:", err);
@@ -772,9 +642,9 @@ const generatePatientPDF = async () => {
                 </span>
               </Tag>
 
-              <Tag bg="bg-[#EAFBFF]">
+              {/* <Tag bg="bg-[#EAFBFF]">
                 BP: {vitals.bp || "—"}
-              </Tag>
+              </Tag> */}
 
               {capturedAt && (
                 <Tag bg="bg-[#EAFBFF]">
@@ -1252,7 +1122,7 @@ const generatePatientPDF = async () => {
                       SENDING...
                     </>
                   ) : (
-                    "SAVE & SEND (Email)"
+                    "SAVE & SEND"
                   )}
                 </PrimaryButton>
               </div>

@@ -1,140 +1,17 @@
-// // import express from "express";
-// // import multer from "multer";
-
-// // const router = express.Router();
-// // const upload = multer();
-
-// // /* 🔗 n8n Webhooks */
-// // const VOICE_WEBHOOK =
-// //   "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/prodvoicebasedurl";
-
-// // const SAVE_WEBHOOK =
-// //   "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/savetodrive";
-
-// // /* ---------------- VOICE → n8n ---------------- */
-// // router.post("/voice", upload.single("audio"), async (req, res) => {
-// //   try {
-// //     if (!req.file) {
-// //       return res.status(400).json({ error: "No audio received" });
-// //     }
-
-// //     // ✅ Native FormData (Node 18+)
-// //     const formData = new FormData();
-// //     const audioBlob = new Blob([req.file.buffer], {
-// //       type: "audio/wav",
-// //     });
-
-// //     formData.append("audio", audioBlob, "doctor_note.wav");
-
-// //     const response = await fetch(VOICE_WEBHOOK, {
-// //       method: "POST",
-// //       body: formData,
-// //     });
-
-// //     const data = await response.json();
-// //     res.json(data);
-
-// //   } catch (err) {
-// //     console.error("❌ Voice processing error:", err);
-// //     res.status(500).json({ error: "Voice processing failed" });
-// //   }
-// // });
-
-// // /* ---------------- SAVE CONFIRMED DATA ---------------- */
-// // router.post("/confirm", async (req, res) => {
-// //   try {
-// //     await fetch(SAVE_WEBHOOK, {
-// //       method: "POST",
-// //       headers: { "Content-Type": "application/json" },
-// //       body: JSON.stringify(req.body),
-// //     });
-
-// //     res.json({ success: true });
-
-// //   } catch (err) {
-// //     console.error("❌ Save error:", err);
-// //     res.status(500).json({ error: "Save failed" });
-// //   }
-// // });
-
-// // export default router;
-
-
-
-// import express from "express";
-// import multer from "multer";
-
-// const router = express.Router();
-// const upload = multer();
-
-// const patients = [];
-
-// const VOICE_WEBHOOK =
-//   "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/prodvoicebasedurl";
-
-// const SAVE_WEBHOOK =
-//   "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/savetodrive";
-
-// /* ---------- VOICE ---------- */
-// router.post("/voice", upload.single("audio"), async (req, res) => {
-//   try {
-//     const formData = new FormData();
-//     const audioBlob = new Blob([req.file.buffer], {
-//       type: req.file.mimetype,
-//     });
-
-//     formData.append("audio", audioBlob, "doctor_note.wav");
-
-//     const response = await fetch(VOICE_WEBHOOK, {
-//       method: "POST",
-//       body: formData,
-//     });
-
-//     const data = await response.json();
-//     res.json(data);
-//   } catch {
-//     res.status(500).json({ error: "Voice processing failed" });
-//   }
-// });
-
-// /* ---------- CONFIRM ---------- */
-// router.post("/confirm", async (req, res) => {
-//   try {
-//     const patient = {
-//       ...req.body,
-//       createdAt: new Date().toISOString(),
-//     };
-
-//     patients.push(patient);
-
-//     await fetch(SAVE_WEBHOOK, {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify(patient),
-//     });
-
-//     res.json({ success: true });
-//   } catch {
-//     res.status(500).json({ error: "Save failed" });
-//   }
-// });
-
-// /* ---------- DASHBOARD ---------- */
-// router.get("/patients", (req, res) => {
-//   res.json(patients);
-// });
-
-// export default router;
-
-
+//                 -  Created By Abishek N8N Team 
 import express from "express";
 console.log("✅ MEDIBOT ROUTER LOADED");
 import multer from "multer";
 
 import FormData from "form-data";
+import fs from "fs";
+import path from "path";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+
+const hospitalFilePath = path.join(process.cwd(), "hospital.json");
+
 
 router.get("/ping", (req, res) => {
   res.json({ message: "MediBot working" });
@@ -203,11 +80,11 @@ router.get("/BillingDetails", async (req, res) => {
       "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/BillingDetails"
     );
 
-    const text = await response.text();
+    const data = await response.json();   // ✅ parse JSON correctly
 
-    console.log("n8n response:", text);
+    console.log("n8n response:", data);
 
-    res.send(text);
+    res.json(data);   // ✅ send JSON to frontend
 
   } catch (error) {
     console.error("Billing error:", error);
@@ -253,8 +130,36 @@ router.post("/billing-summary-get", async (req, res) => {
   }
 });
 
+const NOTIFICATION_WEBHOOK =
+"https://dharinisrisubramanian.n8n-wsk.com/webhook-test/notification";
+
+router.get("/appointments", async (req, res) => {
+  try {
+
+    const response = await fetch(NOTIFICATION_WEBHOOK);
+
+    const data = await response.json();
+
+    res.json(data);
+
+  } catch (err) {
+    console.error("appointments error:", err);
+    res.status(500).json({ error: "Failed to fetch appointments" });
+  }
+});
+
+
+
 /* ---------- TEMP MEMORY DB ---------- */
 const patients = [];
+let hospitalDetails = {};
+
+try {
+  const data = fs.readFileSync(hospitalFilePath, "utf-8");
+  hospitalDetails = JSON.parse(data);
+} catch (err) {
+  console.log("hospital.json not found, using defaults");
+}
 
 /* =========================================================
    🎙️ VOICE → n8n → RETURN CLEAN MEDICAL JSON
@@ -308,9 +213,10 @@ router.post(
   async (req, res) => {
     try {
       const patient = {
-        ...req.body,
-        createdAt: new Date().toISOString(),
-      };
+  ...req.body,
+  ...hospitalDetails,
+  createdAt: new Date().toISOString(),
+};
 
       patients.push(patient);
 
@@ -369,6 +275,7 @@ router.get("/generate-patient-id", async (req, res) => {
 /* =========================================================
    📅 GET LATEST BOOKINGS (For Notifications)
 ========================================================= */
+
 
 
 
@@ -509,6 +416,10 @@ router.post("/sent_reschedule", async (req, res) => {
     res.status(500).json({ error: "Webhook failed" });
   }
 });
+
+
+
+
 
 
 export default router;

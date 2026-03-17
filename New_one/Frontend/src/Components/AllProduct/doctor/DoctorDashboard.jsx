@@ -169,13 +169,7 @@ const QuickActions = ({ onGo }) => {
   );
 };
 
-const TodayAppointments = ({ onViewAll }) => {
-  const rows = [
-    { name: "Rajesh Kumar", tag: "Follow-up", time: "09:00 AM" },
-    { name: "Priya Sharma", tag: "New Patient", time: "10:00 AM" },
-    { name: "Amit Patel", tag: "Consultation", time: "02:00 PM" },
-  ];
-
+const TodayAppointments = ({ rows = [], onViewAll }) => {
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -193,56 +187,50 @@ const TodayAppointments = ({ onViewAll }) => {
       </div>
 
       <div className="mt-2 border-2 border-black bg-white rounded-md p-3">
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <div
-              key={r.name}
-              className="border-2 border-black rounded-sm p-3 flex items-center gap-3"
-            >
-              <div className="h-9 w-9 bg-[#00B8DB] border-2 border-black rounded-sm flex items-center justify-center">
-                <FiUser className="text-black" />
-              </div>
+        {rows.length === 0 ? (
+  <div className="text-sm text-black/60">
+    No appointments today
+  </div>
+) : (
+  <div className="space-y-3">
 
-              <div className="flex-1 leading-tight">
-                <div className="font-extrabold text-sm text-black">{r.name}</div>
-                <div className="text-xs text-black/55">{r.tag}</div>
-              </div>
+    {rows.map((r, i) => (
 
-              <div className="h-6 px-2 bg-[#00B8DB] border-2 border-black rounded-sm font-extrabold text-[10px] text-black flex items-center">
-                {r.time}
-              </div>
-            </div>
-          ))}
+      <div
+        key={i}
+        className="border-2 border-black rounded-sm p-3 flex items-center gap-3"
+      >
+
+        <div className="h-9 w-9 bg-[#00B8DB] border-2 border-black rounded-sm flex items-center justify-center">
+          <FiUser className="text-black" />
         </div>
+
+        <div className="flex-1 leading-tight">
+          <div className="font-extrabold text-sm text-black">
+            {r.name}
+          </div>
+
+          <div className="text-xs text-black/55">
+            {r.tag}
+          </div>
+        </div>
+
+        <div className="h-6 px-2 bg-[#00B8DB] border-2 border-black rounded-sm font-extrabold text-[10px] text-black flex items-center">
+          {r.time}
+        </div>
+
+      </div>
+
+    ))}
+
+  </div>
+)}
       </div>
     </div>
   );
 };
 
-const RecentActivity = () => {
-  const items = [
-    {
-      title: "New Appointment Booked",
-      desc: "Rajesh Kumar booked via chatbot for 9:00 AM",
-      time: "01:13 PM",
-    },
-    {
-      title: "Payment Received",
-      desc: "Priya Sharma paid ₹200 via UPI",
-      time: "12:43 PM",
-    },
-    {
-      title: "Report Sent",
-      desc: "Medical report sent to Amit Patel via WhatsApp & Email",
-      time: "12:28 PM",
-    },
-    {
-      title: "Social Post Published",
-      desc: "Health tips post shared on LinkedIn & Instagram",
-      time: "11:28 AM",
-    },
-  ];
-
+const RecentActivity = ({ items = [] }) => {
   return (
     <div>
       <div className="text-xs font-extrabold text-black/20 uppercase tracking-widest">
@@ -250,34 +238,56 @@ const RecentActivity = () => {
       </div>
 
       <div className="mt-2 border-2 border-[#F0B100] bg-white rounded-md p-3 space-y-3">
-        {items.map((a) => (
-          <div
-            key={a.title}
-            className="border-2 border-[#00B8DB] rounded-sm p-3 flex items-start gap-3"
-          >
-            <div className="h-9 w-9 bg-[#0D0D0D] rounded-sm flex items-center justify-center border-2 border-black">
-              <FiClipboard className="text-white" />
-            </div>
 
-            <div className="flex-1">
-              <div className="font-extrabold text-sm text-black">{a.title}</div>
-              <div className="text-xs text-black/60 mt-1">{a.desc}</div>
-              <div className="text-[10px] text-black/45 mt-1">{a.time}</div>
-            </div>
-
-            <FiCheckCircle className="text-[#00C950] text-lg mt-0.5" />
+        {items.length === 0 ? (
+          <div className="text-sm text-black/60">
+            No recent activity
           </div>
-        ))}
+        ) : (
+          items.map((a, i) => (
+            <div
+              key={i}
+              className="border-2 border-[#00B8DB] rounded-sm p-3 flex items-start gap-3"
+            >
+              <div className="h-9 w-9 bg-[#0D0D0D] rounded-sm flex items-center justify-center border-2 border-black">
+                <FiClipboard className="text-white" />
+              </div>
+
+              <div className="flex-1">
+                <div className="font-extrabold text-sm text-black">{a.title}</div>
+                <div className="text-xs text-black/60 mt-1">{a.desc}</div>
+                <div className="text-[10px] text-black/45 mt-1">{a.time}</div>
+              </div>
+
+              <FiCheckCircle className="text-[#00C950] text-lg mt-0.5" />
+            </div>
+          ))
+        )}
+
       </div>
     </div>
   );
 };
 
-const RevenueSummary = ({ onViewDetails }) => {
+const RevenueSummary = ({
+  onViewDetails,
+  collectedAmount,
+  pendingAmount,
+  consultations,
+  pendingCount,
+  currencySymbol
+}) => {
+const now = new Date();
+
+const monthYear = now.toLocaleString("en-IN", {
+  month: "long",
+  year: "numeric",
+});
+
   return (
     <div className="border-2 border-[#00B8DB] bg-white rounded-md p-4">
       <div className="font-extrabold text-sm text-black uppercase">
-        Revenue Summary - February 2026
+        Revenue Summary - {monthYear}
       </div>
 
       <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -285,24 +295,24 @@ const RevenueSummary = ({ onViewDetails }) => {
           <div className="text-[10px] font-extrabold text-black/60 uppercase">
             Collected
           </div>
-          <div className="mt-2 text-2xl font-extrabold text-black">₹18,400</div>
-          <div className="text-xs text-black/60 mt-1">92 consultations</div>
+          <div className="mt-2 text-2xl font-extrabold text-black">{currencySymbol}{collectedAmount.toLocaleString("en-IN")}</div>
+          <div className="text-xs text-black/60 mt-1">{consultations} consultations</div>
         </div>
 
         <div className="border-2 border-[#F0B100] rounded-md p-4 bg-[#FFFBEE]">
           <div className="text-[10px] font-extrabold text-black/60 uppercase">
             Pending
           </div>
-          <div className="mt-2 text-2xl font-extrabold text-black">₹1,200</div>
-          <div className="text-xs text-black/60 mt-1">6 pending</div>
+          <div className="mt-2 text-2xl font-extrabold text-black">{currencySymbol}{pendingAmount.toLocaleString("en-IN")}</div>
+          <div className="text-xs text-black/60 mt-1">{pendingCount} pending</div>
         </div>
 
         <div className="border-2 border-[#00B8DB] rounded-md p-4 bg-[#EAFBFF]">
           <div className="text-[10px] font-extrabold text-black/60 uppercase">
             Total Expected
           </div>
-          <div className="mt-2 text-2xl font-extrabold text-black">₹19,600</div>
-          <div className="text-xs text-black/60 mt-1">98 total</div>
+          <div className="mt-2 text-2xl font-extrabold text-black">{currencySymbol}{(collectedAmount + pendingAmount).toLocaleString("en-IN")}</div>
+          <div className="text-xs text-black/60 mt-1">{consultations + pendingCount} total</div>
         </div>
       </div>
 
@@ -435,19 +445,36 @@ const buildSlotsFromRanges = (ranges) => {
   return [...out];
 };
 
+const formatTime = (t24) => {
+  const [hh, mm] = t24.split(":").map(Number);
+  const am = hh < 12;
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+
+  return `${String(h12).padStart(2, "0")}:${String(mm).padStart(2, "0")} ${
+    am ? "AM" : "PM"
+  }`;
+};
+
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [todayAppointments, setTodayAppointments] = useState(0);
+  const [todayRows, setTodayRows] = useState([]);
   const [availableSlots, setAvailableSlots] = useState(0);
   const [reportsGenerated, setReportsGenerated] = useState(0);
+
   const [pendingAmount, setPendingAmount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
+
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifShowAll, setNotifShowAll] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const notifWrapRef = useRef(null);
 
+  // Revenue summary states
+  const [collectedAmount, setCollectedAmount] = useState(0);
+  const [consultations, setConsultations] = useState(0);
+  const [currencySymbol, setCurrencySymbol] = useState("₹");
   // track rejected suggestions (hide on page)
   const [rejectedSuggestions, setRejectedSuggestions] = useState(() => new Set());
 
@@ -537,29 +564,44 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const getTodayCount = () => {
-      const stored = localStorage.getItem("bookingsByDate");
+useEffect(() => {
 
-      if (!stored) {
-        setTodayAppointments(0);
-        return;
-      }
+  const getTodayAppointments = () => {
 
-      const bookings = JSON.parse(stored);
+    const stored = localStorage.getItem("bookingsByDate");
 
-      const todayKey = new Date().toISOString().slice(0, 10);
-      const todayBookings = bookings[todayKey] || {};
+    if (!stored) {
+      setTodayAppointments(0);
+      setTodayRows([]);
+      return;
+    }
 
-      setTodayAppointments(Object.keys(todayBookings).length);
-    };
+    const bookings = JSON.parse(stored);
 
-    getTodayCount();
+    const todayKey = new Date().toISOString().slice(0,10);
 
-    const interval = setInterval(getTodayCount, 2000);
+    const todayBookings = bookings[todayKey] || {};
 
-    return () => clearInterval(interval);
-  }, []);
+    const rows = Object.entries(todayBookings)
+  .map(([time, booking]) => ({
+    name: booking.patient,
+    tag: booking.via === "CHATBOT" ? "New Patient" : booking.via || "Consultation",
+    time: formatTime(time)
+  }))
+      .sort((a,b)=>a.time.localeCompare(b.time));
+
+    setTodayAppointments(rows.length);
+    setTodayRows(rows);
+
+  };
+
+  getTodayAppointments();
+
+  const interval = setInterval(getTodayAppointments, 2000);
+
+  return () => clearInterval(interval);
+
+}, []);
 
   useEffect(() => {
     const calculateAvailableSlots = () => {
@@ -637,6 +679,87 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+
+  const calculateRevenue = () => {
+
+    const stored = localStorage.getItem("billingRecords");
+
+    if (!stored) return;
+
+    const records = JSON.parse(stored);
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    let collected = 0;
+    let pending = 0;
+    let consult = 0;
+    let pendingC = 0;
+
+    records.forEach(r => {
+
+      const d = new Date(r.date);
+
+      if (
+        d.getMonth() === currentMonth &&
+        d.getFullYear() === currentYear
+      ) {
+
+        consult++;
+
+        if (r.status === "PAID") {
+          collected += Number(r.amount || 0);
+        }
+
+        if (r.status === "PENDING") {
+          pending += Number(r.amount || 0);
+          pendingC++;
+        }
+
+      }
+
+    });
+
+    setCollectedAmount(collected);
+    setPendingAmount(pending);
+    setConsultations(consult);
+    setPendingCount(pendingC);
+
+  };
+
+  calculateRevenue();
+
+  const interval = setInterval(calculateRevenue, 2000);
+
+  return () => clearInterval(interval);
+
+}, []);
+
+useEffect(() => {
+  const storedBilling = localStorage.getItem("billingSettings");
+
+  if (!storedBilling) return;
+
+  const billing = JSON.parse(storedBilling);
+
+  const getSymbol = (currency) => {
+    switch (currency) {
+      case "US Dollar (USD)":
+        return "$";
+      case "Euro (EUR)":
+        return "€";
+      case "UAE Dirham (AED)":
+        return "د.إ";
+      default:
+        return "₹";
+    }
+  };
+
+  setCurrencySymbol(getSymbol(billing.currency));
+}, []);
+
   const rejectSuggestion = (key) => {
     setRejectedSuggestions((prev) => {
       const next = new Set(prev);
@@ -680,7 +803,7 @@ const Dashboard = () => {
     {
       title: "PENDING PAYMENTS",
       value: pendingAmount.toLocaleString("en-IN"),
-      valuePrefix: "₹",
+      valuePrefix: currencySymbol,
       subtitle: `${pendingCount} payments due`,
       border: "border-[#F0B100]",
       iconBg: "bg-[#F0B100]",
@@ -805,7 +928,14 @@ const Dashboard = () => {
 
         {/* Revenue (VIEW DETAILS -> Billing page) */}
         <div className="mt-6">
-          <RevenueSummary onViewDetails={() => go("billing")} />
+          <RevenueSummary
+  onViewDetails={() => go("billing")}
+  collectedAmount={collectedAmount}
+  pendingAmount={pendingAmount}
+  consultations={consultations}
+  pendingCount={pendingCount}
+  currencySymbol={currencySymbol}
+/>
         </div>
 
         {/* AI Suggestions */}
@@ -839,7 +969,10 @@ const Dashboard = () => {
 
         {/* Today + Activity */}
         <div className="mt-7 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TodayAppointments onViewAll={() => go("appointment")} />
+          <TodayAppointments
+  rows={todayRows}
+  onViewAll={() => go("appointment")}
+/>
           <RecentActivity />
         </div>
       </main>

@@ -1,5 +1,3 @@
-
-
 // import React, { useMemo, useState } from "react";
 // import {
 //   FiCalendar,
@@ -609,6 +607,7 @@ const formatDatePretty = (iso) => {
 
 export default function Followups() {
   const [items, setItems] = useState([]);
+  const [remindersSent, setRemindersSent] = useState(0);
 
   const [loading, setLoading] = useState(false);
   const location = useLocation();
@@ -647,7 +646,7 @@ export default function Followups() {
 
       console.log("RAW DATA:", data);
       // ✅ Always convert response into array safely
-      const rawArray = [].concat(data || []);
+      const rawArray = Array.isArray(data) ? data : data.data || [];
 
       console.log("FINAL RAW ARRAY:", rawArray);
 
@@ -658,15 +657,19 @@ export default function Followups() {
 
 
 
-      const formatted = rawArray
+    const formatted = rawArray
         .map((item) => {
-          if (!item.lastVisitDate || !item.followupDate) {
+
+          const lastVisitDate = item.lastVisitDate;
+          const followupDate = item.followupDate;
+
+          if (!lastVisitDate || !followupDate) {
             console.log("Missing dates in item:", item);
             return null;
           }
 
-          const [day1, month1, year1] = item.lastVisitDate.split("-");
-          const [day2, month2, year2] = item.followupDate.split("-");
+          const [day1, month1, year1] = lastVisitDate.split("-");
+          const [day2, month2, year2] = followupDate.split("-");
 
           const lastVisit = new Date(year1, month1 - 1, day1);
           const followup = new Date(year2, month2 - 1, day2);
@@ -692,12 +695,12 @@ export default function Followups() {
             name: item.Patient_Name,
             phone: String(item.Patient_Phone || ""),
             reason: item.reason || "Follow-up check",
-            lastVisit: lastVisit.toISOString().split("T")[0],
-            dueDate: followup.toISOString().split("T")[0],
+            lastVisit: lastVisitDate,
+            dueDate: followupDate,
             status: status,
             sent: false,
             auto: true,
-          };
+       };
         })
         .filter(Boolean); // 🔥 VERY IMPORTANT
       console.log("FORMATTED ITEMS:", formatted);
@@ -783,7 +786,7 @@ export default function Followups() {
     const dueToday = items.filter((i) => i.status === "DUE TODAY").length;
     const overdue = items.filter((i) => i.status === "OVERDUE").length;
 
-    const remindersSent = items.filter((i) => i.sent).length;
+    const sentCount = remindersSent;
 
     const completionRate =
       total > 0 ? Math.round((remindersSent / total) * 100) : 0;
@@ -802,6 +805,7 @@ export default function Followups() {
     try {
       // trigger webhook
       await triggerWebhook("send", row);
+      setRemindersSent((prev) => prev + 1);
 
       // show SENT immediately
       setItems((prev) =>
@@ -837,7 +841,7 @@ export default function Followups() {
       return;
     }
 
-    const pretty = formatDatePretty(newDate) || target.dueDate;
+    const pretty = newDate;   // keep same yyyy-mm-dd format
 
     // 🔴 Trigger webhook ONLY
     await triggerWebhook("reschedule", target, {
@@ -972,8 +976,10 @@ export default function Followups() {
                       </div>
 
                       <div className="text-xs text-black/60 mt-1">
-                        ID: {row.id} • {row.reason}
-                      </div>
+                          ID: {row.id} • {row.reason}
+                        </div>
+
+                        
                     </div>
 
                     {/* Right buttons */}
@@ -1017,7 +1023,7 @@ export default function Followups() {
                       <FiMessageSquare className="mt-1" />
                       <div className="text-black/75">
                         {row.sent
-                          ? "Reminder sent via Gmail."
+                          ? "Reminder sent via Telegram."
                           : "Reminder pending — will auto-send 2 days before."}
                       </div>
                     </div>

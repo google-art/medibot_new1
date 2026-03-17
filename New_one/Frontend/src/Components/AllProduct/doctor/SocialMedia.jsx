@@ -1,3 +1,6 @@
+// Frontend , SocialMedia.jsx -> // 11/03/2026  - Work By Abishek - Changes : Linked In Connectivity , Token Chache , Post On Platforms
+// 12/03/2026  - Work By Abishek - Changes : Tiktok Platform Removed , Target Audience DropDown etc....
+
 import { useState, useRef, useEffect } from "react";
 import {
   FiUpload,
@@ -119,11 +122,11 @@ export default function SocialMedia() {
       icon: <FaFacebookF className="text-xl" />,
       color: "from-blue-600 to-blue-800",
     },
-    {
-      name: "TikTok",
-      icon: <FaTiktok className="text-xl" />,
-      color: "from-gray-900 to-black",
-    },
+    // {
+    //   name: "TikTok",
+    //   icon: <FaTiktok className="text-xl" />,
+    //   color: "from-gray-900 to-black",
+    // },
     {
       name: "YouTube",
       icon: <FaYoutube className="text-xl" />,
@@ -204,6 +207,42 @@ export default function SocialMedia() {
       "How to build an engaged community on social media through authentic content"
     );
   }, []);
+
+  useEffect(() => {
+
+  const preloadLinkedin = async () => {
+
+    try {
+
+      const res = await fetch(
+        "http://localhost:3001/api/social/check-linkedin"
+      );
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      if (data.connected) {
+        console.log("⚡ LinkedIn token ready in cache");
+      } else {
+        console.log("⚠️ LinkedIn not logged in yet");
+      }
+
+    } catch (err) {
+
+      console.error("LinkedIn preload error:", err);
+
+    }
+
+  };
+
+  preloadLinkedin();
+
+}, []);
+
+
+  
+
 
   // Revoke object URLs on unmount
   useEffect(() => {
@@ -600,25 +639,83 @@ const clickTimestamp = istString.replace(" ", "T") + "+05:30";
     }
   };
 
-  const handlePostNow = async () => {
+  // const handlePostNow = async () => {
+  //   setPosting(true);
+  //   try {
+  //     await sendActionWebhook({
+  //       actionType: "post_now",
+  //       scheduledDateTime: new Date().toISOString(),
+  //       postContent: generatedPost,
+  //     });
+
+  //     alert(`✅ Post published successfully on ${platform}!`);
+  //     setPopupOpen(null);
+  //   } catch (err) {
+  //     console.error("❌ Post now failed:", err);
+  //     alert("❌ Failed to send webhook (CORS/Network issue likely)");
+  //   } finally {
+  //     setPosting(false);
+  //   }
+  // };
+
+
+const handlePostNow = async () => {
+
+  if (posting) return; // 🚀 Prevent double click
+
+  if (platform !== "LinkedIn") return;
+
+  if (!generatedPost && !generatedImage) {
+    alert("No content to post");
+    return;
+  }
+
+  try {
+
     setPosting(true);
-    try {
-      await sendActionWebhook({
-        actionType: "post_now",
-        scheduledDateTime: new Date().toISOString(),
-        postContent: generatedPost,
-      });
 
-      alert(`✅ Post published successfully on ${platform}!`);
+    const postRes = await fetch(
+      "http://localhost:3001/api/social/post-now",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          platform,
+          postType,
+          content: generatedPost || "",
+          hashtags: hashtags || [],
+          image: generatedImage || null,
+        }),
+      }
+    );
+
+    const postData = await postRes.json();
+
+    if (postData.success) {
+
+      alert("✅ Posted to LinkedIn successfully!");
       setPopupOpen(null);
-    } catch (err) {
-      console.error("❌ Post now failed:", err);
-      alert("❌ Failed to send webhook (CORS/Network issue likely)");
-    } finally {
-      setPosting(false);
-    }
-  };
 
+    } else {
+
+      alert("❌ LinkedIn post failed");
+
+    }
+
+  } catch (err) {
+
+    console.error("❌ Post failed:", err);
+    alert("Server error while posting");
+
+  } finally {
+
+    setPosting(false);
+
+  }
+
+};
   const handleSchedule = async () => {
     if (!scheduleDate || !scheduleTime) {
       alert("Please select both date and time");
@@ -668,10 +765,12 @@ const clickTimestamp = istString.replace(" ", "T") + "+05:30";
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
+
+
+  
   // Auto-generate post when relevant fields change
 
-
-  return (
+return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
@@ -700,7 +799,43 @@ const clickTimestamp = istString.replace(" ", "T") + "+05:30";
 
                     <CardSelect
                       active={platform === p.name}
-                      onClick={() => setPlatform(p.name)}
+                      onClick={async () => {
+
+
+
+ if (p.name === "LinkedIn") {
+
+  try {
+
+    const res = await fetch(
+      "http://localhost:3001/api/social/check-linkedin"
+    );
+
+    const data = await res.json();
+
+    if (!data.connected) {
+
+  window.open(
+    "http://localhost:3001/auth/linkedin/login",
+    "_blank"
+  );
+
+  
+
+  return;
+
+    }
+
+  } catch (err) {
+
+    console.error("LinkedIn connection check failed");
+
+  }
+
+}
+
+setPlatform(p.name);
+}}
                       className="flex flex-col items-center p-4"
                     >
                       <div
@@ -903,7 +1038,7 @@ const clickTimestamp = istString.replace(" ", "T") + "+05:30";
             </Section>
 
             {/* Target Audience */}
-            <Section title="Target Audience" icon={<FiTarget />}>
+            {/* <Section title="Target Audience" icon={<FiTarget />}>
               <div className="flex flex-wrap gap-3">
                 {audiences.map((a) => (
                   <button
@@ -919,7 +1054,27 @@ const clickTimestamp = istString.replace(" ", "T") + "+05:30";
                   </button>
                 ))}
               </div>
-            </Section>
+            </Section> */}
+
+            {/* Target Audience */}
+<Section title="Target Audience" icon={<FiTarget />}>
+  <div className="relative">
+    <select
+      value={audience}
+      onChange={(e) => setAudience(e.target.value)}
+      className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pr-10 bg-white focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 transition-all appearance-none"
+    >
+      {audiences.map((a) => (
+        <option key={a.name} value={a.name}>
+          {a.icon} {a.name}
+        </option>
+      ))}
+    </select>
+
+    {/* Dropdown icon */}
+    <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+  </div>
+</Section>
 
             {/* Emoji Intensity */}
             <Section title="Emoji Intensity" icon={<FiSmile />}>

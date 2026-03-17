@@ -1,5 +1,3 @@
-
-
 // import React, { useMemo, useState } from "react";
 // import {
 //   FiDownload,
@@ -923,51 +921,86 @@ const Billing = () => {
       else if (json.body) data = json.body;
       else data = [json];
 
+
       const formatted = data
-        .filter((item) => item.PatientId && item.Patient_Name)   // prevents empty card
+        .filter((item) => item.PatientId && item.Patient_Name)
         .map((item) => ({
           id: item.PatientId,
           name: item.Patient_Name,
-          date: getCurrentDate(),
-          time: getCurrentTime(),
+          date: formatDate(item.Date),
+
+          time: formatWebhookTime(item.Time || item.time),
+
           fee: appBillingSettings.defaultFee || 200,
-          status: "pending",
-          note: "",
+          status: normalizeStatus(item.Status || item.status),
+          note: item.note || "",
         }));
 
       setRecords((prev) => {
-        const existingIds = new Set(prev.map((r) => r.id));
+        const existingKeys = new Set(
+          prev.map((r) => `${r.id}-${r.date}-${r.time}`)
+        );
 
-        const newRecords = formatted.filter((r) => !existingIds.has(r.id));
+        const newRecords = formatted.filter(
+          (r) => !existingKeys.has(`${r.id}-${r.date}-${r.time}`)
+        );
 
         return [...prev, ...newRecords];
       });
     } catch (err) {
       console.error(err);
+      setFetchError("Failed to load billing data");
+    } finally {
+      setLoading(false);
     }
   };
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
+
     try {
       const d = new Date(dateStr);
       if (isNaN(d)) return dateStr;
-      return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const year = d.getFullYear();
+
+      return `${month}/${day}/${year}`;
     } catch {
       return dateStr;
     }
   };
 
-  const getCurrentDate = () => {
-    const d = new Date();
-    return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
-  };
 
-  const getCurrentTime = () => {
-    const d = new Date();
-    return d.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const formatWebhookTime = (timeStr) => {
+    if (!timeStr) return "—";
+
+    try {
+      // case 1: full ISO date
+      if (timeStr.includes("T")) {
+        const d = new Date(timeStr);
+        return d.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      // case 2: HH:MM or HH:MM:SS
+      const parts = String(timeStr).split(":");
+      const h = Number(parts[0]);
+      const m = Number(parts[1]);
+
+      const d = new Date();
+      d.setHours(h);
+      d.setMinutes(m);
+
+      return d.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "—";
+    }
   };
 
   const normalizeStatus = (s) => {
@@ -997,7 +1030,7 @@ const Billing = () => {
     }
   }, []);
 
-  
+
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all"); // all | pending | paid | overdue
@@ -1164,22 +1197,15 @@ const Billing = () => {
 
   useEffect(() => {
     fetchBillingDetails();
-    fetchBillingSummary();
-    autoSaveDailySummary();
+
+    const interval = setInterval(() => {
+      fetchBillingDetails();
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    const savedRecords = localStorage.getItem("billing_records");
-
-    if (savedRecords) {
-      try {
-        const parsed = JSON.parse(savedRecords);
-        setRecords(parsed);
-      } catch (err) {
-        console.error("Failed to parse billing records", err);
-      }
-    }
-
     setLoading(false);
   }, []);
   // run only once when page loads
@@ -1251,7 +1277,7 @@ const Billing = () => {
 
     const now = new Date();
 
-    const date = now.toLocaleDateString();
+    const date = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
 
     const time = now.toLocaleTimeString([], {
       hour: "2-digit",
@@ -1547,7 +1573,7 @@ const Billing = () => {
               console.log("RENDER:", r);
               return (
                 <RecordCard
-                  key={r.id}
+                  key={`${r.id}-${r.date}-${r.time}`}
                   r={r}
                   currencySymbol={currencySymbol}
                   isEditing={!!editing[r.id]?.active}
