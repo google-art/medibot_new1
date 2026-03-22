@@ -1,8 +1,7 @@
 // 12/03/2026   - Worked By Abishek and Rithanya  - Settings Load ,  Data Sending 
 
 import React, { useEffect, useMemo, useState } from "react";
-
-import {
+import{
   FiActivity,
   FiArrowLeft,
   FiCheck,
@@ -16,9 +15,11 @@ import {
   FiClock,
   FiX,
   FiUpload,
+  
 
 } from "react-icons/fi";
 import useSettings from "./useSettings";
+import { useNavigate } from "react-router-dom";
 
 const PAGE_BG = "#FEFCE8";
 
@@ -183,6 +184,8 @@ function ProcessingStep({ label, done, active }) {
 }
 
 export default function Consultation() {
+
+  const navigate = useNavigate();   
   // Draft from CaptureVitals / or existing consultation link
   const draft = useMemo(() => {
     try {
@@ -666,7 +669,23 @@ export default function Consultation() {
 
           <div className="flex items-center gap-3">
             <SecondaryButton
-              onClick={() => window.history.back()}
+              onClick={() => {
+  const draft = JSON.parse(
+    sessionStorage.getItem("consultationDraft") || "{}"
+  );
+
+  if (!draft?.patientId) {
+    window.history.back();
+    return;
+  }
+
+  navigate(`/maindoctor/capture/${draft.patientId}`, {
+    state: {
+      ...draft,
+      mode: "draft",   // 🔥 CRITICAL FIX
+    },
+  });
+}}
               leftIcon={<FiArrowLeft />}
             >
               BACK

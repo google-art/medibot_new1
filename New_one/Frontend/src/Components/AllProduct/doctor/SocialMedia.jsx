@@ -1,4 +1,4 @@
-// Frontend , SocialMedia.jsx -> // 11/03/2026  - Work By Abishek - Changes : Linked In Connectivity , Token Chache , Post On Platforms
+// 11/03/2026  - Work By Abishek - Changes : Linked In Connectivity , Token Chache , Post On Platforms
 // 12/03/2026  - Work By Abishek - Changes : Tiktok Platform Removed , Target Audience DropDown etc....
 
 import { useState, useRef, useEffect } from "react";
@@ -724,9 +724,8 @@ const handlePostNow = async () => {
 
     setScheduling(true);
     try {
-      const scheduledDateTime = new Date(
-        `${scheduleDate}T${scheduleTime}`
-      ).toISOString();
+      const scheduledDateTime =
+  `${scheduleDate}T${scheduleTime}`;
 
       await sendActionWebhook({
         actionType: "schedule",

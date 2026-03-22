@@ -1,4 +1,3 @@
-
 import axios from "axios";
 
 /* =====================================
@@ -24,7 +23,7 @@ let cachedToken = null;
 let postsLocal = [];
 
 /* =====================================
-   UTILITY: SLEEP
+   UTILITY
 ===================================== */
 
 function sleep(ms) {
@@ -32,11 +31,12 @@ function sleep(ms) {
 }
 
 /* =====================================
-   1️⃣ FETCH TOKEN
+   FETCH TOKEN
 ===================================== */
 
 export async function fetchToken() {
   try {
+
     console.log("🌐 Fetching LinkedIn token...");
 
     const res = await axios.get(TOKEN_WEBHOOK);
@@ -55,14 +55,17 @@ export async function fetchToken() {
     console.log("✅ Token stored successfully");
 
     return true;
+
   } catch (err) {
+
     console.log("❌ Token fetch failed:", err.message);
     return false;
+
   }
 }
 
 /* =====================================
-   2️⃣ FETCH POSTS UNTIL SUCCESS
+   FETCH POSTS
 ===================================== */
 
 export async function fetchPostsUntilSuccess() {
@@ -75,7 +78,7 @@ export async function fetchPostsUntilSuccess() {
     { name: "IMAGE", url: IMAGE_API, done: false }
   ];
 
-  while (apiList.some((api) => !api.done)) {
+  while (apiList.some(api => !api.done)) {
 
     for (const api of apiList) {
 
@@ -120,7 +123,7 @@ export function showLocalPosts() {
 
   console.log("\n📦 Stored Local Posts\n");
 
-  if (postsLocal.length === 0) {
+  if (!postsLocal.length) {
     console.log("No scheduled posts found\n");
     return;
   }
@@ -134,7 +137,6 @@ export function showLocalPosts() {
       "Unknown";
 
     const time = post.scheduled_time || "Not scheduled";
-
     const status = post.Post_status || "pending";
 
     console.log(`Post ${index + 1}`);
@@ -176,29 +178,83 @@ async function postToLinkedin(post) {
 
   const userId = await getLinkedinUser();
 
-  const content = post.postContent || post.post || "";
+  /* =====================================
+     HASHTAGS
+  ===================================== */
 
-  const hashtags = post.hashtags || [];
+  let hashtags =
+    post.hashtags ||
+    post["Hashtag's"] ||
+    post.Hashtags ||
+    [];
 
-  const image = post.url || null;
+  if (typeof hashtags === "string") {
 
-  /* ---------- MERGE HASHTAGS ---------- */
+    hashtags = hashtags
+      .replace(/,/g, " ")
+      .split(/\s+/)
+      .filter(Boolean);
 
-  let finalText = content;
+  }
+
+  /* =====================================
+     IMAGE DETECTION
+  ===================================== */
+
+  let image =
+    post.url ||
+    post.image ||
+    post.image_url ||
+    post.Image_URL ||
+    null;
+
+  if (!image && post.post_type === "image") {
+    image = post.post;
+  }
+
+  /* =====================================
+     CONTENT TEXT
+  ===================================== */
+
+  let content = "";
+
+  if (post.post_type !== "image") {
+
+    content =
+      post.postContent ||
+      post.post ||
+      post.caption ||
+      post.text ||
+      post.description ||
+      "";
+
+  }
+
+  content = content.replace(/https?:\/\/\S+/g, "").trim();
+
+  let finalText = cleanLinkedinText(content);
 
   if (hashtags.length > 0) {
-    finalText += "\n\n" + hashtags.join(" ");
+
+    const hashtagString = hashtags
+      .map(tag => tag.startsWith("#") ? tag : "#" + tag)
+      .join(" ");
+
+    finalText += "\n\n" + hashtagString;
+
   }
+
+  finalText = finalText.substring(0, 2900);
 
   let assetUrn = null;
 
   /* =====================================
-     IMAGE UPLOAD FLOW
+     IMAGE UPLOAD
   ===================================== */
 
   if (image) {
 
-    console.log("📷 Uploading image for scheduled post");
+    console.log("📷 Uploading image...");
 
     const registerUpload = await axios.post(
       "https://api.linkedin.com/v2/assets?action=registerUpload",
@@ -236,11 +292,12 @@ async function postToLinkedin(post) {
 
     await axios.put(uploadUrl, imageFile.data, {
       headers: {
-        "Content-Type": "image/png"
+        "Content-Type": "application/octet-stream"
       }
     });
 
     console.log("✅ Image uploaded");
+
   }
 
   /* =====================================
@@ -269,6 +326,7 @@ async function postToLinkedin(post) {
               }
             ]
           : []
+
       }
     },
 
@@ -295,7 +353,23 @@ async function postToLinkedin(post) {
 }
 
 /* =====================================
-   3️⃣ SCHEDULER ENGINE
+   TEXT CLEANER
+===================================== */
+
+function cleanLinkedinText(text) {
+
+  if (!text) return "";
+
+  return text
+    .replace(/\*\*/g, "")
+    .replace(/__/g, "")
+    .replace(/`/g, "")
+    .trim();
+
+}
+
+/* =====================================
+   SCHEDULER
 ===================================== */
 
 export function startScheduler() {
@@ -314,17 +388,31 @@ export function startScheduler() {
 
         const scheduled = new Date(post.scheduled_time);
 
-        const diff = Math.abs(now - scheduled);
+        const diff = now - scheduled;
 
-        /* 30 second window */
+        if (
+          diff >= 0 &&
+          diff < 30000 &&
+          (post.Post_status === "Scheduled" || post.Post_status === "pending")
+        ) {
 
-        if (diff < 30000 && post.Post_status !== "published") {
+          console.log("⏰ Posting scheduled post:", post.post_type);
 
-          console.log("⏰ Posting scheduled post:", post.post);
+          post.Post_status = "posting";
 
-          await postToLinkedin(post);
+          try {
 
-          post.Post_status = "published";
+            await postToLinkedin(post);
+
+            post.Post_status = "published";
+
+          } catch (err) {
+
+            console.log("❌ Post failed:", err.response?.data || err.message);
+
+            post.Post_status = "failed";
+
+          }
 
         }
 

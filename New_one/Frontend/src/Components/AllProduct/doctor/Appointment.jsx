@@ -1,1837 +1,5 @@
 //  12/03/2026  Worked By Abishek Intern   Changes - Manage Slot Button Upgrade
 
-
-
-// import React, { useEffect, useMemo, useState } from "react";
-// import {
-//   FiCalendar,
-//   FiClock,
-//   FiBell,
-//   FiCheck,
-//   FiChevronLeft,
-//   FiChevronRight,
-//   FiPlus,
-//   FiX,
-//   FiEdit2,
-//   FiMessageSquare,
-// } from "react-icons/fi";
-
-// const PAGE_BG = "#FEFCE8";
-// const CYAN = "#00B8DB";
-// const YELLOW = "#F0B100";
-// const GREEN = "#00C950";
-// const BLACK = "#111111";
-
-// const pad2 = (n) => String(n).padStart(2, "0");
-
-// const toKey = (date) => {
-//   const y = date.getFullYear();
-//   const m = pad2(date.getMonth() + 1);
-//   const d = pad2(date.getDate());
-//   return `${y}-${m}-${d}`;
-// };
-
-// const parseKey = (key) => {
-//   const [y, m, d] = key.split("-").map((x) => Number(x));
-//   return new Date(y, m - 1, d);
-// };
-
-// const formatLong = (date) =>
-//   date.toLocaleDateString("en-US", {
-//     weekday: "long",
-//     month: "long",
-//     day: "numeric",
-//     year: "numeric",
-//   });
-
-// const formatMonthTitle = (date) =>
-//   date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-
-// const timeLabel = (t24) => {
-//   if (!t24) return "";
-//   const [hh, mm] = t24.split(":").map(Number);
-//   const am = hh < 12;
-//   const h12 = hh % 12 === 0 ? 12 : hh % 12;
-//   return `${pad2(h12)}:${pad2(mm)} ${am ? "AM" : "PM"}`;
-// };
-
-// const sortTimes = (arr) =>
-//   [...arr].sort((a, b) => {
-//     const [ah, am] = a.split(":").map(Number);
-//     const [bh, bm] = b.split(":").map(Number);
-//     return ah * 60 + am - (bh * 60 + bm);
-//   });
-
-// const t24ToMinutes = (t24) => {
-//   const [h, m] = t24.split(":").map(Number);
-//   return h * 60 + m;
-// };
-
-// const minutesToT24 = (min) => {
-//   const h = Math.floor(min / 60);
-//   const m = min % 60;
-//   return `${pad2(h)}:${pad2(m)}`;
-// };
-
-// // Generate discrete 30-min slots within ranges (inclusive start, exclusive end)
-// const buildSlotsFromRanges = (ranges) => {
-//   const out = new Set();
-//   for (const r of ranges) {
-//     if (!r.start || !r.end) continue;
-//     const startMin = t24ToMinutes(r.start);
-//     const endMin = t24ToMinutes(r.end);
-//     if (endMin <= startMin) continue;
-
-//     for (let m = startMin; m < endMin; m += 30) {
-//       out.add(minutesToT24(m));
-//     }
-//   }
-//   return sortTimes([...out]);
-// };
-
-// /* ---------- UI atoms ---------- */
-
-// const StatCard = ({ title, value, subtitle, borderColor, iconBg, icon }) => (
-//   <div
-//     className="bg-white rounded-md border-2 p-5 flex items-start justify-between"
-//     style={{ borderColor }}
-//   >
-//     <div>
-//       <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
-//         {title}
-//       </div>
-//       <div className="mt-2 text-4xl font-extrabold text-black leading-none">
-//         {value}
-//       </div>
-//       <div className="mt-2 text-sm text-black/60">{subtitle}</div>
-//     </div>
-
-//     <div
-//       className="h-12 w-12 rounded-md border-2 border-black flex items-center justify-center"
-//       style={{ background: iconBg }}
-//     >
-//       <div className="text-black text-xl">{icon}</div>
-//     </div>
-//   </div>
-// );
-
-// const Badge = ({ label, tone = "gray" }) => {
-//   const tones = {
-//     green: "bg-[#EFFFF5] border-[#00C950]",
-//     cyan: "bg-[#EAFBFF] border-[#00B8DB]",
-//     yellow: "bg-[#FFF3CC] border-[#F0B100]",
-//     gray: "bg-white border-black/30",
-//   };
-//   return (
-//     <span
-//       className={`inline-flex items-center h-5 px-2 border-2 rounded-sm text-[10px] font-extrabold text-black ${tones[tone]}`}
-//     >
-//       {label}
-//     </span>
-//   );
-// };
-
-// const Button = ({ children, className = "", ...props }) => (
-//   <button
-//     {...props}
-//     className={`h-9 px-4 border-2 border-black rounded-sm font-extrabold text-xs inline-flex items-center gap-2 ${className}`}
-//   >
-//     {children}
-//   </button>
-// );
-
-// const IconBtn = ({ children, className = "", ...props }) => (
-//   <button
-//     {...props}
-//     className={`h-9 w-9 border-2 border-black rounded-sm bg-white inline-flex items-center justify-center ${className}`}
-//   >
-//     {children}
-//   </button>
-// );
-
-// const SectionTitle = ({ icon, title }) => (
-//   <div className="flex items-center gap-2">
-//     <div className="text-black">{icon}</div>
-//     <div className="text-sm font-extrabold text-black uppercase">{title}</div>
-//   </div>
-// );
-
-// // iOS-like toggle (matches your reference image feel)
-// const Toggle = ({ checked, onChange }) => (
-//   <button
-//     type="button"
-//     onClick={() => onChange(!checked)}
-//     className={`relative inline-flex h-6 w-11 items-center rounded-full border-2 border-black transition-colors ${
-//       checked ? "bg-[#00B8DB]" : "bg-[#E5E7EB]"
-//     }`}
-//     aria-pressed={checked}
-//   >
-//     <span
-//       className={`inline-block h-5 w-5 transform rounded-full bg-white border-2 border-black transition-transform ${
-//         checked ? "translate-x-5" : "translate-x-0.5"
-//       }`}
-//     />
-//   </button>
-// );
-
-// function SelectTime({ value, onChange, placeholder = "Opens at", options }) {
-//   return (
-//     <select
-//       value={value || ""}
-//       onChange={(e) => onChange(e.target.value || "")}
-//       className={`h-10 px-3 border-2 border-black rounded-sm bg-white text-sm font-semibold outline-none ${
-//         value ? "text-black" : "text-black/40"
-//       }`}
-//     >
-//       <option value="">{placeholder}</option>
-//       {options.map((o) => (
-//         <option key={o.value} value={o.value}>
-//           {o.label}
-//         </option>
-//       ))}
-//     </select>
-//   );
-// }
-
-// /* ---------- main ---------- */
-
-// export default function Appointment() {
-//   // Start on February 2026 to match screenshot.
-//   const [monthCursor, setMonthCursor] = useState(new Date(2026, 1, 1)); // Feb 2026
-//   const [selectedKey, setSelectedKey] = useState(toKey(new Date(2026, 1, 5))); // 2026-02-05
-//   const selectedDate = useMemo(() => parseKey(selectedKey), [selectedKey]);
-
-//   const [view, setView] = useState("slots"); // "slots" | "calendar"
-//   const [showManageSlots, setShowManageSlots] = useState(true);
-
-//   // Notifications
-//   const [notifications, setNotifications] = useState([
-//     {
-//       id: "n1",
-//       text: "Rajesh Kumar - New appointment booked via chatbot",
-//       time: "11:57:17 AM",
-//       read: false,
-//     },
-//     {
-//       id: "n2",
-//       text: "Priya Sharma - New appointment booked via chatbot",
-//       time: "11:27:17 AM",
-//       read: false,
-//     },
-//   ]);
-
-//   // --- Day HOURS config (Open/Closed + time ranges)
-//   const [hoursByDate, setHoursByDate] = useState(() => ({
-//     "2026-02-05": { open: true, ranges: [{ start: "09:00", end: "17:00" }] },
-//     "2026-02-10": { open: true, ranges: [{ start: "09:00", end: "12:00" }] },
-//     "2026-02-15": { open: true, ranges: [{ start: "10:00", end: "13:00" }] },
-//     "2026-02-20": { open: true, ranges: [{ start: "09:30", end: "11:00" }, { start: "14:00", end: "16:00" }] },
-//     "2026-02-25": { open: true, ranges: [{ start: "09:00", end: "12:00" }, { start: "14:30", end: "17:00" }] },
-//   }));
-
-//   // Bookings (per day + time)
-//   const [bookingsByDate, setBookingsByDate] = useState(() => ({
-//     "2026-02-05": {
-//       "09:00": {
-//         patient: "Rajesh Kumar",
-//         pid: "P001",
-//         phone: "+91 98765 43210",
-//         email: "rajesh@example.com",
-//         bookedAt: "2/5/2026, 10:12:17 AM",
-//         via: "CHATBOT",
-//       },
-//       "10:00": {
-//         patient: "Priya Sharma",
-//         pid: "P002",
-//         phone: "+91 98765 43211",
-//         email: "priya@example.com",
-//         bookedAt: "2/5/2026, 11:42:17 AM",
-//         via: "CHATBOT",
-//       },
-//       "14:00": {
-//         patient: "Amit Patel",
-//         pid: "P003",
-//         phone: "+91 98765 43212",
-//         email: "amit@example.com",
-//         bookedAt: "2/5/2026, 11:12:17 AM",
-//         via: "CHATBOT",
-//       },
-//     },
-//     "2026-02-10": {
-//       "09:00": {
-//         patient: "Rajesh Kumar",
-//         pid: "P001",
-//         phone: "+91 98765 43210",
-//         email: "rajesh@example.com",
-//         bookedAt: "2/10/2026, 09:12:17 AM",
-//         via: "CHATBOT",
-//       },
-//       "10:00": {
-//         patient: "Priya Sharma",
-//         pid: "P002",
-//         phone: "+91 98765 43211",
-//         email: "priya@example.com",
-//         bookedAt: "2/10/2026, 09:42:17 AM",
-//         via: "CHATBOT",
-//       },
-//     },
-//   }));
-
-//   const TIME_OPTIONS = useMemo(
-//     () =>
-//       [
-//         "06:00",
-//         "06:30",
-//         "07:00",
-//         "07:30",
-//         "08:00",
-//         "08:30",
-//         "09:00",
-//         "09:30",
-//         "10:00",
-//         "10:30",
-//         "11:00",
-//         "11:30",
-//         "12:00",
-//         "12:30",
-//         "13:00",
-//         "13:30",
-//         "14:00",
-//         "14:30",
-//         "15:00",
-//         "15:30",
-//         "16:00",
-//         "16:30",
-//         "17:00",
-//         "17:30",
-//         "18:00",
-//         "18:30",
-//         "19:00",
-//         "19:30",
-//         "20:00",
-//       ].map((t) => ({ value: t, label: timeLabel(t) })),
-//     []
-//   );
-
-//   // Current day config
-//   const dayHours = useMemo(() => {
-//     return (
-//       hoursByDate[selectedKey] || {
-//         open: true,
-//         ranges: [{ start: "", end: "17:00" }],
-//       }
-//     );
-//   }, [hoursByDate, selectedKey]);
-
-//   const daySlots = useMemo(() => {
-//     if (!dayHours.open) return [];
-//     return buildSlotsFromRanges(dayHours.ranges);
-//   }, [dayHours]);
-
-//   const dayBookings = useMemo(() => bookingsByDate[selectedKey] || {}, [bookingsByDate, selectedKey]);
-
-//   const daySchedule = useMemo(
-//     () =>
-//       daySlots.map((t) => ({
-//         time: t,
-//         booking: dayBookings[t] || null,
-//       })),
-//     [daySlots, dayBookings]
-//   );
-
-//   const stats = useMemo(() => {
-//     const todayBookings = Object.keys(dayBookings).length;
-//     const available = daySlots.length - todayBookings;
-//     const totalSlots = daySlots.length;
-//     const chatbotPct = todayBookings === 0 ? "0%" : "100%";
-//     return { todayBookings, available, totalSlots, chatbotPct };
-//   }, [dayBookings, daySlots]);
-
-//   const calendarCells = useMemo(() => {
-//     const year = monthCursor.getFullYear();
-//     const month = monthCursor.getMonth();
-//     const first = new Date(year, month, 1);
-//     const startDay = first.getDay();
-//     const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-//     const cells = [];
-//     for (let i = 0; i < 42; i++) {
-//       const dayNum = i - startDay + 1;
-//       if (dayNum < 1 || dayNum > daysInMonth) {
-//         cells.push({ type: "empty", key: `e-${i}` });
-//       } else {
-//         const d = new Date(year, month, dayNum);
-//         const key = toKey(d);
-//         const h = hoursByDate[key];
-//         const slots = h && h.open ? buildSlotsFromRanges(h.ranges).length : 0;
-//         const booked = bookingsByDate[key] ? Object.keys(bookingsByDate[key]).length : 0;
-//         cells.push({ type: "day", key, dayNum, slots, booked });
-//       }
-//     }
-//     return cells;
-//   }, [monthCursor, hoursByDate, bookingsByDate]);
-
-//   const markNotificationRead = (id) => {
-//     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-//   };
-
-//   const navMonth = (dir) => {
-//     setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + dir, 1));
-//   };
-
-//   const isSelected = (key) => key === selectedKey;
-
-//   /* ---------- Hours UI handlers (Google-style) ---------- */
-
-//   const setDayOpen = (open) => {
-//     setHoursByDate((prev) => {
-//       const existing = prev[selectedKey] || { open: true, ranges: [{ start: "", end: "17:00" }] };
-//       const next = { ...existing, open };
-//       // If closing, no slots should exist; we also remove bookings that don't make sense? keep bookings as historical; schedule will show none.
-//       return { ...prev, [selectedKey]: next };
-//     });
-//   };
-
-//   const updateRange = (idx, patch) => {
-//     setHoursByDate((prev) => {
-//       const existing = prev[selectedKey] || { open: true, ranges: [{ start: "", end: "17:00" }] };
-//       const ranges = existing.ranges.map((r, i) => (i === idx ? { ...r, ...patch } : r));
-//       return { ...prev, [selectedKey]: { ...existing, ranges } };
-//     });
-//   };
-
-//   const addHoursRange = () => {
-//     setHoursByDate((prev) => {
-//       const existing = prev[selectedKey] || { open: true, ranges: [{ start: "", end: "17:00" }] };
-//       const ranges = [...existing.ranges, { start: "", end: "" }];
-//       return { ...prev, [selectedKey]: { ...existing, ranges } };
-//     });
-//   };
-
-//   const removeHoursRange = (idx) => {
-//     setHoursByDate((prev) => {
-//       const existing = prev[selectedKey] || { open: true, ranges: [{ start: "", end: "17:00" }] };
-//       const ranges = existing.ranges.filter((_, i) => i !== idx);
-//       return { ...prev, [selectedKey]: { ...existing, ranges: ranges.length ? ranges : [{ start: "", end: "" }] } };
-//     });
-//   };
-
-//   // If slots shrink, remove bookings that fall outside current slots (keeps UI consistent)
-//   useEffect(() => {
-//     const allowed = new Set(daySlots);
-//     setBookingsByDate((prev) => {
-//       const day = prev[selectedKey];
-//       if (!day) return prev;
-
-//       const nextDay = {};
-//       let changed = false;
-
-//       for (const [t, b] of Object.entries(day)) {
-//         if (allowed.has(t)) nextDay[t] = b;
-//         else changed = true;
-//       }
-
-//       if (!changed) return prev;
-//       return { ...prev, [selectedKey]: nextDay };
-//     });
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [selectedKey, daySlots.join("|")]);
-
-//   const TopToggle = () => (
-//     <div className="flex items-center gap-2">
-//       <Button
-//         onClick={() => setView("calendar")}
-//         className={view === "calendar" ? "bg-black text-white" : "bg-white text-black"}
-//       >
-//         <FiCalendar />
-//         CALENDAR
-//       </Button>
-
-//       <Button
-//         onClick={() => setView("slots")}
-//         className={view === "slots" ? "bg-[#00B8DB] text-black" : "bg-white text-black"}
-//       >
-//         <FiClock />
-//         SLOTS
-//       </Button>
-//     </div>
-//   );
-
-//   return (
-//     <div
-//       className="min-h-screen font-sans"
-//       style={{
-//         backgroundColor: PAGE_BG,
-//         fontFamily:
-//           "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
-//       }}
-//     >
-//       <main className="mx-auto max-w-[1100px] px-6 py-7">
-//         {/* Header */}
-//         <div className="flex items-start justify-between gap-4">
-//           <div>
-//             <h1 className="text-3xl font-extrabold text-black tracking-tight">APPOINTMENTS</h1>
-//             <p className="text-sm text-black/55 mt-1">Manage your appointment slots and bookings</p>
-//           </div>
-//           <TopToggle />
-//         </div>
-
-//         {/* Stats */}
-//         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-//           <StatCard
-//             title="TODAY'S BOOKINGS"
-//             value={stats.todayBookings}
-//             subtitle="patients scheduled"
-//             borderColor={CYAN}
-//             iconBg={CYAN}
-//             icon={<FiCalendar />}
-//           />
-//           <StatCard
-//             title="AVAILABLE SLOTS"
-//             value={stats.available < 0 ? 0 : stats.available}
-//             subtitle="Open for booking"
-//             borderColor={BLACK}
-//             iconBg="#fff"
-//             icon={<FiClock />}
-//           />
-//           <StatCard
-//             title="TOTAL SLOTS"
-//             value={stats.totalSlots}
-//             subtitle="slots configured"
-//             borderColor={YELLOW}
-//             iconBg={YELLOW}
-//             icon={<FiClock />}
-//           />
-//           <StatCard
-//             title="CHATBOT BOOKINGS"
-//             value={stats.chatbotPct}
-//             subtitle="All bookings via AI chatbot"
-//             borderColor={CYAN}
-//             iconBg={CYAN}
-//             icon={<FiMessageSquare />}
-//           />
-//         </div>
-
-//         {/* Notifications */}
-//         <div className="mt-6 border-2 border-black bg-white rounded-md">
-//           <div className="p-4 border-b border-black/10 flex items-center justify-between">
-//             <SectionTitle icon={<FiBell />} title="NEW NOTIFICATIONS" />
-//           </div>
-
-//           <div className="p-4 space-y-3">
-//             {notifications.length === 0 ? (
-//               <div className="text-sm text-black/60">No notifications.</div>
-//             ) : (
-//               notifications.map((n) => (
-//                 <div
-//                   key={n.id}
-//                   className="border-2 border-black rounded-sm p-3 flex items-center justify-between gap-3"
-//                 >
-//                   <div className="min-w-0">
-//                     <div className="text-sm font-semibold text-black truncate">{n.text}</div>
-//                     <div className="text-[11px] text-black/50 mt-1">{n.time}</div>
-//                   </div>
-
-//                   <button
-//                     onClick={() => markNotificationRead(n.id)}
-//                     className={`h-9 w-10 border-2 border-black rounded-sm inline-flex items-center justify-center ${
-//                       n.read ? "bg-[#B9F6CC]" : "bg-[#00B8DB]"
-//                     }`}
-//                     title={n.read ? "Read" : "Mark as read"}
-//                   >
-//                     <FiCheck className="text-black" />
-//                   </button>
-//                 </div>
-//               ))
-//             )}
-//           </div>
-//         </div>
-
-//         {/* Main */}
-//         {view === "slots" ? (
-//           <>
-//             {/* Manage slots button */}
-//             <div className="mt-6">
-//               <Button
-//                 onClick={() => setShowManageSlots((v) => !v)}
-//                 className="bg-[#00B8DB] text-black"
-//               >
-//                 <FiPlus />
-//                 MANAGE SLOTS
-//               </Button>
-//             </div>
-
-//             {/* Slot Management (UPDATED to Hours-style like your reference image) */}
-//             {showManageSlots && (
-//               <div className="mt-4 border-2 rounded-md bg-white p-5" style={{ borderColor: CYAN }}>
-//                 <div className="flex items-start justify-between gap-3">
-//                   <div>
-//                     <div className="text-sm font-extrabold text-black uppercase">HOURS</div>
-//                     <div className="text-xs text-black/55 mt-1">
-//                       Configure available slot hours for <b>{formatLong(selectedDate)}</b>
-//                     </div>
-//                   </div>
-
-//                   <IconBtn
-//                     onClick={() => setShowManageSlots(false)}
-//                     className="bg-black text-white"
-//                     title="Close"
-//                   >
-//                     <FiX />
-//                   </IconBtn>
-//                 </div>
-
-//                 <div className="mt-5 border-t border-black/10 pt-4">
-//                   <div className="flex items-center gap-3">
-//                     <div className="w-24 text-sm font-semibold text-black">
-//                       {selectedDate.toLocaleDateString("en-US", { weekday: "long" })}
-//                     </div>
-
-//                     <Toggle checked={dayHours.open} onChange={setDayOpen} />
-
-//                     <div className="text-sm font-semibold text-black/70">
-//                       {dayHours.open ? "Open" : "Closed"}
-//                     </div>
-
-//                     <div className="flex-1" />
-//                   </div>
-
-//                   {/* Ranges */}
-//                   {dayHours.open && (
-//                     <div className="mt-3 space-y-3">
-//                       {dayHours.ranges.map((r, idx) => (
-//                         <div key={idx} className="flex flex-wrap items-center gap-3">
-//                           <SelectTime
-//                             value={r.start}
-//                             onChange={(v) => updateRange(idx, { start: v })}
-//                             placeholder="Opens at"
-//                             options={TIME_OPTIONS}
-//                           />
-
-//                           <div className="text-black/40 font-extrabold">—</div>
-
-//                           <SelectTime
-//                             value={r.end}
-//                             onChange={(v) => updateRange(idx, { end: v })}
-//                             placeholder="Closes at"
-//                             options={TIME_OPTIONS}
-//                           />
-
-//                           {/* Remove range (only if multiple) */}
-//                           {dayHours.ranges.length > 1 && (
-//                             <IconBtn
-//                               onClick={() => removeHoursRange(idx)}
-//                               className="bg-white"
-//                               title="Remove hours"
-//                             >
-//                               <FiX />
-//                             </IconBtn>
-//                           )}
-
-//                           <div className="flex-1" />
-
-//                           {/* Add hours link on the right like reference image */}
-//                           {idx === dayHours.ranges.length - 1 && (
-//                             <button
-//                               type="button"
-//                               onClick={addHoursRange}
-//                               className="text-sm font-extrabold underline"
-//                               style={{ color: CYAN }}
-//                             >
-//                               Add hours
-//                             </button>
-//                           )}
-//                         </div>
-//                       ))}
-
-//                       {/* Helper text */}
-//                       <div className="text-xs text-black/55">
-//                         Slots are auto-generated every <b>30 minutes</b> inside the time range(s).
-//                       </div>
-//                     </div>
-//                   )}
-//                 </div>
-//               </div>
-//             )}
-
-//             {/* Today's schedule */}
-//             <div className="mt-7 flex items-center justify-between gap-3">
-//               <div className="text-lg font-extrabold text-black uppercase">TODAY'S SCHEDULE</div>
-//               <div
-//                 className="h-8 px-3 border-2 border-black rounded-sm bg-[#00B8DB] text-black text-xs font-extrabold inline-flex items-center"
-//               >
-//                 {formatLong(selectedDate)}
-//               </div>
-//             </div>
-
-//             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-//               {daySchedule.map(({ time, booking }) =>
-//                 booking ? (
-//                   <BookedCard key={time} time={timeLabel(time)} booking={booking} />
-//                 ) : (
-//                   <AvailableCard key={time} time={timeLabel(time)} />
-//                 )
-//               )}
-
-//               {daySchedule.length === 0 ? (
-//                 <div className="border-2 border-black bg-white rounded-md p-6 text-sm text-black/60">
-//                   No slots configured (or day is Closed).
-//                 </div>
-//               ) : null}
-//             </div>
-//           </>
-//         ) : (
-//           /* CALENDAR view */
-//           <div className="mt-6 border-2 rounded-md bg-white p-5" style={{ borderColor: CYAN }}>
-//             <div className="flex items-start justify-between gap-3">
-//               <div className="text-2xl font-extrabold text-black">{formatMonthTitle(monthCursor)}</div>
-
-//               <div className="flex items-center gap-2">
-//                 <IconBtn className="bg-black text-white" onClick={() => navMonth(-1)} title="Prev month">
-//                   <FiChevronLeft />
-//                 </IconBtn>
-//                 <IconBtn className="bg-black text-white" onClick={() => navMonth(1)} title="Next month">
-//                   <FiChevronRight />
-//                 </IconBtn>
-//               </div>
-//             </div>
-
-//             {/* Week header */}
-//             <div className="mt-4 grid grid-cols-7 gap-2">
-//               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-//                 <div
-//                   key={d}
-//                   className="h-8 bg-black text-white text-xs font-extrabold flex items-center justify-center rounded-sm"
-//                 >
-//                   {d}
-//                 </div>
-//               ))}
-//             </div>
-
-//             {/* Grid */}
-//             <div className="mt-2 grid grid-cols-7 gap-2">
-//               {calendarCells.map((cell) => {
-//                 if (cell.type === "empty") {
-//                   return (
-//                     <div
-//                       key={cell.key}
-//                       className="h-[74px] border border-black/10 rounded-sm bg-white"
-//                     />
-//                   );
-//                 }
-
-//                 const selected = isSelected(cell.key);
-//                 const hasBookings = cell.booked > 0;
-//                 const hasSlots = cell.slots > 0;
-
-//                 const bg = selected ? CYAN : hasBookings ? "#F6E7B1" : "white";
-//                 const border = selected
-//                   ? "2px solid black"
-//                   : hasSlots
-//                   ? "2px solid #CBD5E1"
-//                   : "1px solid rgba(0,0,0,0.10)";
-
-//                 return (
-//                   <button
-//                     key={cell.key}
-//                     onClick={() => setSelectedKey(cell.key)}
-//                     className="h-[74px] rounded-sm flex flex-col items-center justify-center relative"
-//                     style={{ background: bg, border: border }}
-//                     title={`${cell.key} • slots: ${cell.slots}, booked: ${cell.booked}`}
-//                   >
-//                     <div className="text-sm font-extrabold text-black">{cell.dayNum}</div>
-
-//                     {/* dots */}
-//                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-//                       {hasBookings
-//                         ? Array.from({ length: Math.min(3, cell.booked) }).map((_, i) => (
-//                             <span
-//                               key={i}
-//                               className="h-1.5 w-1.5 rounded-full"
-//                               style={{ background: selected ? "black" : CYAN }}
-//                             />
-//                           ))
-//                         : null}
-//                     </div>
-//                   </button>
-//                 );
-//               })}
-//             </div>
-
-//             {/* Day details */}
-//             <div className="mt-6 border-t border-black/10 pt-5 flex items-start justify-between gap-3">
-//               <div className="text-sm font-extrabold text-black">{formatLong(selectedDate)}</div>
-//               <Button className="bg-[#00B8DB] text-black" onClick={() => setView("slots")}>
-//                 <FiPlus />
-//                 ADD SLOTS
-//               </Button>
-//             </div>
-
-//             {/* Mini list */}
-//             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-//               {daySchedule.slice(0, 4).map(({ time, booking }) =>
-//                 booking ? (
-//                   <MiniBooked key={time} time={timeLabel(time)} patient={booking.patient} />
-//                 ) : (
-//                   <MiniAvailable key={time} time={timeLabel(time)} />
-//                 )
-//               )}
-
-//               {daySchedule.length === 0 ? (
-//                 <div className="border-2 border-black rounded-sm p-4 text-sm text-black/60">
-//                   No slots for this day. Switch to <b>SLOTS</b> to add.
-//                 </div>
-//               ) : null}
-//             </div>
-
-//             <div className="mt-4 flex justify-center">
-//               <Button className="bg-black text-white" onClick={() => setView("slots")}>
-//                 VIEW ALL SLOTS
-//               </Button>
-//             </div>
-//           </div>
-//         )}
-//       </main>
-//     </div>
-//   );
-// }
-
-// /* ---------- Cards ---------- */
-
-// function AvailableCard({ time }) {
-//   return (
-//     <div className="border-2 border-[#9CA3AF] bg-white rounded-md p-4">
-//       <div className="flex items-start gap-3">
-//         <div className="h-12 w-12 border-2 border-black rounded-md bg-[#E5E7EB] flex items-center justify-center">
-//           <FiClock className="text-black text-xl" />
-//         </div>
-
-//         <div className="flex-1">
-//           <div className="flex items-center gap-3">
-//             <div className="text-sm font-extrabold text-black">{time}</div>
-//             <Badge label="AVAILABLE" tone="gray" />
-//           </div>
-//           <div className="text-xs text-black/55 mt-1">Waiting for patient to book via chatbot</div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-// function BookedCard({ time, booking }) {
-//   return (
-//     <div className="border-2 border-[#00B8DB] bg-white rounded-md p-4">
-//       <div className="flex items-start justify-between gap-3">
-//         <div className="flex items-start gap-3">
-//           <div className="h-12 w-12 border-2 border-black rounded-md bg-[#00B8DB] flex items-center justify-center">
-//             <FiClock className="text-black text-xl" />
-//           </div>
-
-//           <div>
-//             <div className="flex items-center gap-3 flex-wrap">
-//               <div className="text-sm font-extrabold text-black">{time}</div>
-//               <Badge label="BOOKED" tone="green" />
-//               <Badge label={booking.via} tone="gray" />
-//             </div>
-
-//             <div className="mt-2 text-sm font-extrabold text-black">
-//               {booking.patient}{" "}
-//               <span className="text-black/50 font-semibold">(ID: {booking.pid})</span>
-//             </div>
-
-//             <div className="mt-2 text-xs text-black/70 space-y-1">
-//               <div>📞 {booking.phone}</div>
-//               <div>✉️ {booking.email}</div>
-//               <div>🕒 Booked {booking.bookedAt}</div>
-//             </div>
-//           </div>
-//         </div>
-
-//         <button
-//           className="h-9 w-9 border-2 border-black rounded-sm bg-[#F0B100] inline-flex items-center justify-center"
-//           title="Edit"
-//           onClick={() => alert("Edit action (demo).")}
-//         >
-//           <FiEdit2 className="text-black" />
-//         </button>
-//       </div>
-//     </div>
-//   );
-// }
-
-// /* ---------- Calendar mini rows ---------- */
-
-// function MiniBooked({ time, patient }) {
-//   return (
-//     <div className="border-2 border-[#00B8DB] bg-white rounded-sm p-3 flex items-center justify-between gap-3">
-//       <div className="flex items-center gap-2">
-//         <div className="text-xs font-extrabold text-black">{time}</div>
-//         <Badge label="BOOKED" tone="green" />
-//       </div>
-//       <div className="text-xs font-semibold text-black">{patient}</div>
-//       <button
-//         className="h-7 w-7 border-2 border-black rounded-sm bg-[#F0B100] inline-flex items-center justify-center"
-//         title="Edit"
-//         onClick={() => alert("Edit action (demo).")}
-//       >
-//         <FiEdit2 className="text-black" />
-//       </button>
-//     </div>
-//   );
-// }
-
-// function MiniAvailable({ time }) {
-//   return (
-//     <div className="border-2 border-[#9CA3AF] bg-white rounded-sm p-3 flex items-center justify-between gap-3">
-//       <div className="flex items-center gap-2">
-//         <div className="text-xs font-extrabold text-black">{time}</div>
-//         <Badge label="AVAILABLE" tone="gray" />
-//       </div>
-//       <div className="text-xs text-black/50">—</div>
-//       <div className="h-7 w-7" />
-//     </div>
-//   );
-// }
-// import React, { useEffect, useMemo, useState } from "react";
-// import {
-//   FiCalendar,
-//   FiClock,
-//   FiBell,
-//   FiCheck,
-//   FiChevronLeft,
-//   FiChevronRight,
-//   FiPlus,
-//   FiX,
-//   FiEdit2,
-//   FiMessageSquare,
-// } from "react-icons/fi";
-
-// const PAGE_BG = "#FEFCE8";
-// const CYAN = "#00B8DB";
-// const YELLOW = "#F0B100";
-// const BLACK = "#111111";
-
-// const pad2 = (n) => String(n).padStart(2, "0");
-
-// const toKey = (date) => {
-//   const y = date.getFullYear();
-//   const m = pad2(date.getMonth() + 1);
-//   const d = pad2(date.getDate());
-//   return `${y}-${m}-${d}`;
-// };
-
-// const parseKey = (key) => {
-//   const [y, m, d] = key.split("-").map((x) => Number(x));
-//   return new Date(y, m - 1, d);
-// };
-
-// const formatLong = (date) =>
-//   date.toLocaleDateString("en-US", {
-//     weekday: "long",
-//     month: "long",
-//     day: "numeric",
-//     year: "numeric",
-//   });
-
-// const formatMonthTitle = (date) =>
-//   date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-
-// const timeLabel = (t24) => {
-//   if (!t24) return "";
-//   const [hh, mm] = t24.split(":").map(Number);
-//   const am = hh < 12;
-//   const h12 = hh % 12 === 0 ? 12 : hh % 12;
-//   return `${pad2(h12)}:${pad2(mm)} ${am ? "AM" : "PM"}`;
-// };
-
-// const sortTimes = (arr) =>
-//   [...arr].sort((a, b) => {
-//     const [ah, am] = a.split(":").map(Number);
-//     const [bh, bm] = b.split(":").map(Number);
-//     return ah * 60 + am - (bh * 60 + bm);
-//   });
-
-// const t24ToMinutes = (t24) => {
-//   const [h, m] = t24.split(":").map(Number);
-//   return h * 60 + m;
-// };
-
-// const minutesToT24 = (min) => {
-//   const h = Math.floor(min / 60);
-//   const m = min % 60;
-//   return `${pad2(h)}:${pad2(m)}`;
-// };
-
-// // Generate discrete 30-min slots within ranges (inclusive start, exclusive end)
-// const buildSlotsFromRanges = (ranges) => {
-//   const out = new Set();
-//   for (const r of ranges) {
-//     if (!r.start || !r.end) continue;
-//     const startMin = t24ToMinutes(r.start);
-//     const endMin = t24ToMinutes(r.end);
-//     if (endMin <= startMin) continue;
-
-//     for (let m = startMin; m < endMin; m += 30) out.add(minutesToT24(m));
-//   }
-//   return sortTimes([...out]);
-// };
-
-// const startOfWeekMonday = (date) => {
-//   const d = new Date(date);
-//   const day = d.getDay(); // 0 Sun .. 6 Sat
-//   const diff = day === 0 ? -6 : 1 - day; // shift to Monday
-//   d.setDate(d.getDate() + diff);
-//   d.setHours(0, 0, 0, 0);
-//   return d;
-// };
-
-// const addDays = (date, n) => {
-//   const d = new Date(date);
-//   d.setDate(d.getDate() + n);
-//   return d;
-// };
-
-// /* ---------- UI atoms ---------- */
-
-// const StatCard = ({ title, value, subtitle, borderColor, iconBg, icon }) => (
-//   <div
-//     className="bg-white rounded-md border-2 p-5 flex items-start justify-between"
-//     style={{ borderColor }}
-//   >
-//     <div>
-//       <div className="text-[11px] font-extrabold tracking-widest text-black/60 uppercase">
-//         {title}
-//       </div>
-//       <div className="mt-2 text-4xl font-extrabold text-black leading-none">
-//         {value}
-//       </div>
-//       <div className="mt-2 text-sm text-black/60">{subtitle}</div>
-//     </div>
-
-//     <div
-//       className="h-12 w-12 rounded-md border-2 border-black flex items-center justify-center"
-//       style={{ background: iconBg }}
-//     >
-//       <div className="text-black text-xl">{icon}</div>
-//     </div>
-//   </div>
-// );
-
-// const Badge = ({ label, tone = "gray" }) => {
-//   const tones = {
-//     green: "bg-[#EFFFF5] border-[#00C950]",
-//     cyan: "bg-[#EAFBFF] border-[#00B8DB]",
-//     yellow: "bg-[#FFF3CC] border-[#F0B100]",
-//     gray: "bg-white border-black/30",
-//   };
-//   return (
-//     <span
-//       className={`inline-flex items-center h-5 px-2 border-2 rounded-sm text-[10px] font-extrabold text-black ${tones[tone]}`}
-//     >
-//       {label}
-//     </span>
-//   );
-// };
-
-// const Button = ({ children, className = "", ...props }) => (
-//   <button
-//     {...props}
-//     className={`h-9 px-4 border-2 border-black rounded-sm font-extrabold text-xs inline-flex items-center gap-2 ${className}`}
-//   >
-//     {children}
-//   </button>
-// );
-
-// const IconBtn = ({ children, className = "", ...props }) => (
-//   <button
-//     {...props}
-//     className={`h-9 w-9 border-2 border-black rounded-sm bg-white inline-flex items-center justify-center ${className}`}
-//   >
-//     {children}
-//   </button>
-// );
-
-// const SectionTitle = ({ icon, title }) => (
-//   <div className="flex items-center gap-2">
-//     <div className="text-black">{icon}</div>
-//     <div className="text-sm font-extrabold text-black uppercase">{title}</div>
-//   </div>
-// );
-
-// // iOS-like toggle
-// const Toggle = ({ checked, onChange }) => (
-//   <button
-//     type="button"
-//     onClick={() => onChange(!checked)}
-//     className={`relative inline-flex h-6 w-11 items-center rounded-full border-2 border-black transition-colors ${
-//       checked ? "bg-[#00B8DB]" : "bg-[#E5E7EB]"
-//     }`}
-//     aria-pressed={checked}
-//   >
-//     <span
-//       className={`inline-block h-5 w-5 transform rounded-full bg-white border-2 border-black transition-transform ${
-//         checked ? "translate-x-5" : "translate-x-0.5"
-//       }`}
-//     />
-//   </button>
-// );
-
-// function SelectTime({ value, onChange, placeholder, options }) {
-//   return (
-//     <select
-//       value={value || ""}
-//       onChange={(e) => onChange(e.target.value || "")}
-//       className={`h-10 px-3 border-2 border-black rounded-sm bg-white text-sm font-semibold outline-none ${
-//         value ? "text-black" : "text-black/40"
-//       }`}
-//     >
-//       <option value="">{placeholder}</option>
-//       {options.map((o) => (
-//         <option key={o.value} value={o.value}>
-//           {o.label}
-//         </option>
-//       ))}
-//     </select>
-//   );
-// }
-
-// /* ---------- main ---------- */
-
-// export default function Appointment() {
-//   // Start on Feb 2026 to match your screenshot
-//   const [monthCursor, setMonthCursor] = useState(new Date(2026, 1, 1)); // Feb 2026
-//   const [selectedKey, setSelectedKey] = useState(toKey(new Date(2026, 1, 5))); // 2026-02-05
-//   const selectedDate = useMemo(() => parseKey(selectedKey), [selectedKey]);
-
-//   const [view, setView] = useState("slots"); // "slots" | "calendar"
-//   const [showManageSlots, setShowManageSlots] = useState(true);
-
-//   // Notifications
-//   const [notifications, setNotifications] = useState([
-//     {
-//       id: "n1",
-//       text: "Rajesh Kumar - New appointment booked via chatbot",
-//       time: "11:57:17 AM",
-//       read: false,
-//     },
-//     {
-//       id: "n2",
-//       text: "Priya Sharma - New appointment booked via chatbot",
-//       time: "11:27:17 AM",
-//       read: false,
-//     },
-//   ]);
-
-//   // --- Per-DATE hours config (what actually drives slots for each date)
-//   const [hoursByDate, setHoursByDate] = useState(() => ({
-//     "2026-02-05": { open: true, ranges: [{ start: "09:00", end: "17:00" }] },
-//     "2026-02-10": { open: true, ranges: [{ start: "09:00", end: "12:00" }] },
-//     "2026-02-15": { open: true, ranges: [{ start: "10:00", end: "13:00" }] },
-//     "2026-02-20": {
-//       open: true,
-//       ranges: [
-//         { start: "09:30", end: "11:00" },
-//         { start: "14:00", end: "16:00" },
-//       ],
-//     },
-//     "2026-02-25": {
-//       open: true,
-//       ranges: [
-//         { start: "09:00", end: "12:00" },
-//         { start: "14:30", end: "17:00" },
-//       ],
-//     },
-//   }));
-
-//   // Bookings
-//   const [bookingsByDate, setBookingsByDate] = useState(() => ({
-//     "2026-02-05": {
-//       "09:00": {
-//         patient: "Rajesh Kumar",
-//         pid: "P001",
-//         phone: "+91 98765 43210",
-//         email: "rajesh@example.com",
-//         bookedAt: "2/5/2026, 10:12:17 AM",
-//         via: "CHATBOT",
-//       },
-//       "10:00": {
-//         patient: "Priya Sharma",
-//         pid: "P002",
-//         phone: "+91 98765 43211",
-//         email: "priya@example.com",
-//         bookedAt: "2/5/2026, 11:42:17 AM",
-//         via: "CHATBOT",
-//       },
-//       "14:00": {
-//         patient: "Amit Patel",
-//         pid: "P003",
-//         phone: "+91 98765 43212",
-//         email: "amit@example.com",
-//         bookedAt: "2/5/2026, 11:12:17 AM",
-//         via: "CHATBOT",
-//       },
-//     },
-//     "2026-02-10": {
-//       "09:00": {
-//         patient: "Rajesh Kumar",
-//         pid: "P001",
-//         phone: "+91 98765 43210",
-//         email: "rajesh@example.com",
-//         bookedAt: "2/10/2026, 09:12:17 AM",
-//         via: "CHATBOT",
-//       },
-//       "10:00": {
-//         patient: "Priya Sharma",
-//         pid: "P002",
-//         phone: "+91 98765 43211",
-//         email: "priya@example.com",
-//         bookedAt: "2/10/2026, 09:42:17 AM",
-//         via: "CHATBOT",
-//       },
-//     },
-//   }));
-
-//   const TIME_OPTIONS = useMemo(
-//     () =>
-//       [
-//         "06:00",
-//         "06:30",
-//         "07:00",
-//         "07:30",
-//         "08:00",
-//         "08:30",
-//         "09:00",
-//         "09:30",
-//         "10:00",
-//         "10:30",
-//         "11:00",
-//         "11:30",
-//         "12:00",
-//         "12:30",
-//         "13:00",
-//         "13:30",
-//         "14:00",
-//         "14:30",
-//         "15:00",
-//         "15:30",
-//         "16:00",
-//         "16:30",
-//         "17:00",
-//         "17:30",
-//         "18:00",
-//         "18:30",
-//         "19:00",
-//         "19:30",
-//         "20:00",
-//       ].map((t) => ({ value: t, label: timeLabel(t) })),
-//     []
-//   );
-
-//   /* ----------------- WEEKLY SLOTS MODEL (NEW) ----------------- */
-
-//   const weekStart = useMemo(() => startOfWeekMonday(selectedDate), [selectedDate]);
-//   const weekDates = useMemo(
-//     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
-//     [weekStart]
-//   );
-
-//   const weekLabel = useMemo(() => {
-//     const end = addDays(weekStart, 6);
-//     const s = weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-//     const e = end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-//     return `${s} – ${e}`;
-//   }, [weekStart]);
-
-//   // local editor state for Mon..Sun
-//   const [weekHours, setWeekHours] = useState(() => ({
-//     Mon: { open: true, ranges: [{ start: "09:00", end: "17:00" }] },
-//     Tue: { open: true, ranges: [{ start: "09:00", end: "17:00" }] },
-//     Wed: { open: true, ranges: [{ start: "09:00", end: "17:00" }] },
-//     Thu: { open: true, ranges: [{ start: "09:00", end: "17:00" }] },
-//     Fri: { open: true, ranges: [{ start: "09:00", end: "17:00" }] },
-//     Sat: { open: false, ranges: [{ start: "", end: "" }] },
-//     Sun: { open: false, ranges: [{ start: "", end: "" }] },
-//   }));
-
-//   const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-//   // When selected week changes, preload editor from existing hoursByDate if available
-//   useEffect(() => {
-//     setWeekHours((prev) => {
-//       const next = { ...prev };
-//       for (let i = 0; i < 7; i++) {
-//         const date = weekDates[i];
-//         const key = toKey(date);
-//         const name = dayNames[i];
-//         const existing = hoursByDate[key];
-//         if (existing) {
-//           next[name] = {
-//             open: !!existing.open,
-//             ranges: existing.ranges?.length ? existing.ranges.map((r) => ({ ...r })) : [{ start: "", end: "" }],
-//           };
-//         }
-//       }
-//       return next;
-//     });
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [weekStart.getTime()]);
-
-//   const setWeekDayOpen = (day, open) => {
-//     setWeekHours((prev) => ({
-//       ...prev,
-//       [day]: { ...prev[day], open },
-//     }));
-//   };
-
-//   const updateWeekRange = (day, idx, patch) => {
-//     setWeekHours((prev) => {
-//       const ranges = prev[day].ranges.map((r, i) => (i === idx ? { ...r, ...patch } : r));
-//       return { ...prev, [day]: { ...prev[day], ranges } };
-//     });
-//   };
-
-//   const addWeekRange = (day) => {
-//     setWeekHours((prev) => ({
-//       ...prev,
-//       [day]: { ...prev[day], ranges: [...prev[day].ranges, { start: "", end: "" }] },
-//     }));
-//   };
-
-//   const removeWeekRange = (day, idx) => {
-//     setWeekHours((prev) => {
-//       const left = prev[day].ranges.filter((_, i) => i !== idx);
-//       return {
-//         ...prev,
-//         [day]: { ...prev[day], ranges: left.length ? left : [{ start: "", end: "" }] },
-//       };
-//     });
-//   };
-
-//   const applyWeekToDates = () => {
-//     // Writes weekHours into hoursByDate for ALL 7 dates in this selected week
-//     setHoursByDate((prev) => {
-//       const next = { ...prev };
-//       for (let i = 0; i < 7; i++) {
-//         const date = weekDates[i];
-//         const key = toKey(date);
-//         const name = dayNames[i];
-//         next[key] = {
-//           open: !!weekHours[name].open,
-//           ranges: weekHours[name].ranges.map((r) => ({ ...r })),
-//         };
-//       }
-//       return next;
-//     });
-//   };
-
-//   /* ----------------- DAILY VIEW (selected date) ----------------- */
-
-//   const dayHours = useMemo(() => {
-//     return (
-//       hoursByDate[selectedKey] || {
-//         open: true,
-//         ranges: [{ start: "", end: "17:00" }],
-//       }
-//     );
-//   }, [hoursByDate, selectedKey]);
-
-//   const daySlots = useMemo(() => {
-//     if (!dayHours.open) return [];
-//     return buildSlotsFromRanges(dayHours.ranges);
-//   }, [dayHours]);
-
-//   const dayBookings = useMemo(
-//     () => bookingsByDate[selectedKey] || {},
-//     [bookingsByDate, selectedKey]
-//   );
-
-//   const daySchedule = useMemo(
-//     () =>
-//       daySlots.map((t) => ({
-//         time: t,
-//         booking: dayBookings[t] || null,
-//       })),
-//     [daySlots, dayBookings]
-//   );
-
-//   const stats = useMemo(() => {
-//     const todayBookings = Object.keys(dayBookings).length;
-//     const available = daySlots.length - todayBookings;
-//     const totalSlots = daySlots.length;
-//     const chatbotPct = todayBookings === 0 ? "0%" : "100%";
-//     return { todayBookings, available, totalSlots, chatbotPct };
-//   }, [dayBookings, daySlots]);
-
-//   // If slots shrink, remove bookings that fall outside current slots
-//   useEffect(() => {
-//     const allowed = new Set(daySlots);
-//     setBookingsByDate((prev) => {
-//       const day = prev[selectedKey];
-//       if (!day) return prev;
-
-//       const nextDay = {};
-//       let changed = false;
-
-//       for (const [t, b] of Object.entries(day)) {
-//         if (allowed.has(t)) nextDay[t] = b;
-//         else changed = true;
-//       }
-
-//       if (!changed) return prev;
-//       return { ...prev, [selectedKey]: nextDay };
-//     });
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [selectedKey, daySlots.join("|")]);
-
-//   /* ----------------- calendar ----------------- */
-
-//   const calendarCells = useMemo(() => {
-//     const year = monthCursor.getFullYear();
-//     const month = monthCursor.getMonth();
-//     const first = new Date(year, month, 1);
-//     const startDay = first.getDay();
-//     const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-//     const cells = [];
-//     for (let i = 0; i < 42; i++) {
-//       const dayNum = i - startDay + 1;
-//       if (dayNum < 1 || dayNum > daysInMonth) {
-//         cells.push({ type: "empty", key: `e-${i}` });
-//       } else {
-//         const d = new Date(year, month, dayNum);
-//         const key = toKey(d);
-//         const h = hoursByDate[key];
-//         const slots = h && h.open ? buildSlotsFromRanges(h.ranges).length : 0;
-//         const booked = bookingsByDate[key] ? Object.keys(bookingsByDate[key]).length : 0;
-//         cells.push({ type: "day", key, dayNum, slots, booked });
-//       }
-//     }
-//     return cells;
-//   }, [monthCursor, hoursByDate, bookingsByDate]);
-
-//   const markNotificationRead = (id) => {
-//     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-//   };
-
-//   const navMonth = (dir) => {
-//     setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + dir, 1));
-//   };
-
-//   const TopToggle = () => (
-//     <div className="flex items-center gap-2">
-//       <Button
-//         onClick={() => setView("calendar")}
-//         className={view === "calendar" ? "bg-black text-white" : "bg-white text-black"}
-//       >
-//         <FiCalendar />
-//         CALENDAR
-//       </Button>
-
-//       <Button
-//         onClick={() => setView("slots")}
-//         className={view === "slots" ? "bg-[#00B8DB] text-black" : "bg-white text-black"}
-//       >
-//         <FiClock />
-//         SLOTS
-//       </Button>
-//     </div>
-//   );
-
-//   const isSelected = (key) => key === selectedKey;
-
-//   return (
-//     <div
-//       className="min-h-screen font-sans"
-//       style={{
-//         backgroundColor: PAGE_BG,
-//         fontFamily:
-//           "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
-//       }}
-//     >
-//       <main className="mx-auto max-w-[1100px] px-6 py-7">
-//         {/* Header */}
-//         <div className="flex items-start justify-between gap-4">
-//           <div>
-//             <h1 className="text-3xl font-extrabold text-black tracking-tight">APPOINTMENTS</h1>
-//             <p className="text-sm text-black/55 mt-1">
-//               Manage your appointment slots and bookings
-//             </p>
-//           </div>
-//           <TopToggle />
-//         </div>
-
-//         {/* Stats */}
-//         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-//           <StatCard
-//             title="TODAY'S BOOKINGS"
-//             value={stats.todayBookings}
-//             subtitle="patients scheduled"
-//             borderColor={CYAN}
-//             iconBg={CYAN}
-//             icon={<FiCalendar />}
-//           />
-//           <StatCard
-//             title="AVAILABLE SLOTS"
-//             value={stats.available < 0 ? 0 : stats.available}
-//             subtitle="Open for booking"
-//             borderColor={BLACK}
-//             iconBg="#fff"
-//             icon={<FiClock />}
-//           />
-//           <StatCard
-//             title="TOTAL SLOTS"
-//             value={stats.totalSlots}
-//             subtitle="slots configured"
-//             borderColor={YELLOW}
-//             iconBg={YELLOW}
-//             icon={<FiClock />}
-//           />
-//           <StatCard
-//             title="CHATBOT BOOKINGS"
-//             value={stats.chatbotPct}
-//             subtitle="All bookings via AI chatbot"
-//             borderColor={CYAN}
-//             iconBg={CYAN}
-//             icon={<FiMessageSquare />}
-//           />
-//         </div>
-
-//         {/* Notifications */}
-//         <div className="mt-6 border-2 border-black bg-white rounded-md">
-//           <div className="p-4 border-b border-black/10 flex items-center justify-between">
-//             <SectionTitle icon={<FiBell />} title="NEW NOTIFICATIONS" />
-//           </div>
-
-//           <div className="p-4 space-y-3">
-//             {notifications.length === 0 ? (
-//               <div className="text-sm text-black/60">No notifications.</div>
-//             ) : (
-//               notifications.map((n) => (
-//                 <div
-//                   key={n.id}
-//                   className="border-2 border-black rounded-sm p-3 flex items-center justify-between gap-3"
-//                 >
-//                   <div className="min-w-0">
-//                     <div className="text-sm font-semibold text-black truncate">{n.text}</div>
-//                     <div className="text-[11px] text-black/50 mt-1">{n.time}</div>
-//                   </div>
-
-//                   <button
-//                     onClick={() => markNotificationRead(n.id)}
-//                     className={`h-9 w-10 border-2 border-black rounded-sm inline-flex items-center justify-center ${
-//                       n.read ? "bg-[#B9F6CC]" : "bg-[#00B8DB]"
-//                     }`}
-//                     title={n.read ? "Read" : "Mark as read"}
-//                   >
-//                     <FiCheck className="text-black" />
-//                   </button>
-//                 </div>
-//               ))
-//             )}
-//           </div>
-//         </div>
-
-//         {/* Main */}
-//         {view === "slots" ? (
-//           <>
-//             {/* Manage slots button */}
-//             <div className="mt-6">
-//               <Button
-//                 onClick={() => setShowManageSlots((v) => !v)}
-//                 className="bg-[#00B8DB] text-black"
-//               >
-//                 <FiPlus />
-//                 MANAGE SLOTS (WEEK)
-//               </Button>
-//             </div>
-
-//             {/* WEEK HOURS PANEL */}
-//             {showManageSlots && (
-//               <div className="mt-4 border-2 rounded-md bg-white p-5" style={{ borderColor: CYAN }}>
-//                 <div className="flex items-start justify-between gap-3">
-//                   <div>
-//                     <div className="text-sm font-extrabold text-black uppercase">HOURS (WEEK)</div>
-//                     <div className="text-xs text-black/55 mt-1">
-//                       Set hours for the week: <b>{weekLabel}</b>
-//                     </div>
-//                   </div>
-
-//                   <IconBtn
-//                     onClick={() => setShowManageSlots(false)}
-//                     className="bg-black text-white"
-//                     title="Close"
-//                   >
-//                     <FiX />
-//                   </IconBtn>
-//                 </div>
-
-//                 <div className="mt-4 flex items-center justify-between gap-3">
-//                   <div className="text-xs text-black/55">
-//                     Slots auto-generate every <b>30 minutes</b> inside each range.
-//                   </div>
-
-//                   <Button onClick={applyWeekToDates} className="bg-[#00B8DB] text-black">
-//                     <FiCheck />
-//                     APPLY TO THIS WEEK
-//                   </Button>
-//                 </div>
-
-//                 <div className="mt-4 border-t border-black/10 pt-4 space-y-4">
-//                   {dayNames.map((day, i) => {
-//                     const date = weekDates[i];
-//                     const key = toKey(date);
-//                     const active = selectedKey === key;
-
-//                     return (
-//                       <div
-//                         key={day}
-//                         className={`border-2 rounded-md p-4 ${
-//                           active ? "border-black bg-[#EAFBFF]" : "border-black/10 bg-white"
-//                         }`}
-//                       >
-//                         <div className="flex flex-wrap items-center gap-3">
-//                           <button
-//                             type="button"
-//                             onClick={() => setSelectedKey(key)}
-//                             className="text-sm font-extrabold text-black underline"
-//                             title="Select this day"
-//                           >
-//                             {day}{" "}
-//                             <span className="text-black/50 font-semibold">
-//                               ({date.toLocaleDateString("en-US", { month: "short", day: "numeric" })})
-//                             </span>
-//                           </button>
-
-//                           <Toggle checked={weekHours[day].open} onChange={(v) => setWeekDayOpen(day, v)} />
-
-//                           <div className="text-sm font-semibold text-black/70">
-//                             {weekHours[day].open ? "Open" : "Closed"}
-//                           </div>
-//                         </div>
-
-//                         {weekHours[day].open && (
-//                           <div className="mt-3 space-y-3">
-//                             {weekHours[day].ranges.map((r, idx) => (
-//                               <div key={idx} className="flex flex-wrap items-center gap-3">
-//                                 <SelectTime
-//                                   value={r.start}
-//                                   onChange={(v) => updateWeekRange(day, idx, { start: v })}
-//                                   placeholder="Opens at"
-//                                   options={TIME_OPTIONS}
-//                                 />
-
-//                                 <div className="text-black/40 font-extrabold">—</div>
-
-//                                 <SelectTime
-//                                   value={r.end}
-//                                   onChange={(v) => updateWeekRange(day, idx, { end: v })}
-//                                   placeholder="Closes at"
-//                                   options={TIME_OPTIONS}
-//                                 />
-
-//                                 {weekHours[day].ranges.length > 1 && (
-//                                   <IconBtn onClick={() => removeWeekRange(day, idx)} title="Remove range">
-//                                     <FiX />
-//                                   </IconBtn>
-//                                 )}
-
-//                                 <div className="flex-1" />
-
-//                                 {idx === weekHours[day].ranges.length - 1 && (
-//                                   <button
-//                                     type="button"
-//                                     onClick={() => addWeekRange(day)}
-//                                     className="text-sm font-extrabold underline"
-//                                     style={{ color: CYAN }}
-//                                   >
-//                                     Add hours
-//                                   </button>
-//                                 )}
-//                               </div>
-//                             ))}
-//                           </div>
-//                         )}
-//                       </div>
-//                     );
-//                   })}
-//                 </div>
-//               </div>
-//             )}
-
-//             {/* Selected day schedule */}
-//             <div className="mt-7 flex items-center justify-between gap-3">
-//               <div className="text-lg font-extrabold text-black uppercase">SCHEDULE</div>
-//               <div className="h-8 px-3 border-2 border-black rounded-sm bg-[#00B8DB] text-black text-xs font-extrabold inline-flex items-center">
-//                 {formatLong(selectedDate)}
-//               </div>
-//             </div>
-
-//             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-//               {daySchedule.map(({ time, booking }) =>
-//                 booking ? (
-//                   <BookedCard key={time} time={timeLabel(time)} booking={booking} />
-//                 ) : (
-//                   <AvailableCard key={time} time={timeLabel(time)} />
-//                 )
-//               )}
-
-//               {daySchedule.length === 0 ? (
-//                 <div className="border-2 border-black bg-white rounded-md p-6 text-sm text-black/60">
-//                   No slots configured (or day is Closed).
-//                 </div>
-//               ) : null}
-//             </div>
-//           </>
-//         ) : (
-//           /* CALENDAR view */
-//           <div className="mt-6 border-2 rounded-md bg-white p-5" style={{ borderColor: CYAN }}>
-//             <div className="flex items-start justify-between gap-3">
-//               <div className="text-2xl font-extrabold text-black">{formatMonthTitle(monthCursor)}</div>
-
-//               <div className="flex items-center gap-2">
-//                 <IconBtn className="bg-black text-white" onClick={() => navMonth(-1)} title="Prev month">
-//                   <FiChevronLeft />
-//                 </IconBtn>
-//                 <IconBtn className="bg-black text-white" onClick={() => navMonth(1)} title="Next month">
-//                   <FiChevronRight />
-//                 </IconBtn>
-//               </div>
-//             </div>
-
-//             {/* Week header */}
-//             <div className="mt-4 grid grid-cols-7 gap-2">
-//               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-//                 <div
-//                   key={d}
-//                   className="h-8 bg-black text-white text-xs font-extrabold flex items-center justify-center rounded-sm"
-//                 >
-//                   {d}
-//                 </div>
-//               ))}
-//             </div>
-
-//             {/* Grid */}
-//             <div className="mt-2 grid grid-cols-7 gap-2">
-//               {calendarCells.map((cell) => {
-//                 if (cell.type === "empty") {
-//                   return <div key={cell.key} className="h-[74px] border border-black/10 rounded-sm bg-white" />;
-//                 }
-
-//                 const selected = isSelected(cell.key);
-//                 const hasBookings = cell.booked > 0;
-//                 const hasSlots = cell.slots > 0;
-
-//                 const bg = selected ? CYAN : hasBookings ? "#F6E7B1" : "white";
-//                 const border = selected
-//                   ? "2px solid black"
-//                   : hasSlots
-//                   ? "2px solid #CBD5E1"
-//                   : "1px solid rgba(0,0,0,0.10)";
-
-//                 return (
-//                   <button
-//                     key={cell.key}
-//                     onClick={() => setSelectedKey(cell.key)}
-//                     className="h-[74px] rounded-sm flex flex-col items-center justify-center relative"
-//                     style={{ background: bg, border: border }}
-//                     title={`${cell.key} • slots: ${cell.slots}, booked: ${cell.booked}`}
-//                   >
-//                     <div className="text-sm font-extrabold text-black">{cell.dayNum}</div>
-
-//                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-//                       {hasBookings
-//                         ? Array.from({ length: Math.min(3, cell.booked) }).map((_, i) => (
-//                             <span
-//                               key={i}
-//                               className="h-1.5 w-1.5 rounded-full"
-//                               style={{ background: selected ? "black" : CYAN }}
-//                             />
-//                           ))
-//                         : null}
-//                     </div>
-//                   </button>
-//                 );
-//               })}
-//             </div>
-
-//             <div className="mt-6 border-t border-black/10 pt-5 flex items-start justify-between gap-3">
-//               <div className="text-sm font-extrabold text-black">{formatLong(selectedDate)}</div>
-//               <Button className="bg-[#00B8DB] text-black" onClick={() => setView("slots")}>
-//                 <FiPlus />
-//                 ADD SLOTS
-//               </Button>
-//             </div>
-//           </div>
-//         )}
-//       </main>
-//     </div>
-//   );
-// }
-
-// /* ---------- Cards ---------- */
-
-// function AvailableCard({ time }) {
-//   return (
-//     <div className="border-2 border-[#9CA3AF] bg-white rounded-md p-4">
-//       <div className="flex items-start gap-3">
-//         <div className="h-12 w-12 border-2 border-black rounded-md bg-[#E5E7EB] flex items-center justify-center">
-//           <FiClock className="text-black text-xl" />
-//         </div>
-
-//         <div className="flex-1">
-//           <div className="flex items-center gap-3">
-//             <div className="text-sm font-extrabold text-black">{time}</div>
-//             <Badge label="AVAILABLE" tone="gray" />
-//           </div>
-//           <div className="text-xs text-black/55 mt-1">Waiting for patient to book via chatbot</div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-// function BookedCard({ time, booking }) {
-//   return (
-//     <div className="border-2 border-[#00B8DB] bg-white rounded-md p-4">
-//       <div className="flex items-start justify-between gap-3">
-//         <div className="flex items-start gap-3">
-//           <div className="h-12 w-12 border-2 border-black rounded-md bg-[#00B8DB] flex items-center justify-center">
-//             <FiClock className="text-black text-xl" />
-//           </div>
-
-//           <div>
-//             <div className="flex items-center gap-3 flex-wrap">
-//               <div className="text-sm font-extrabold text-black">{time}</div>
-//               <Badge label="BOOKED" tone="green" />
-//               <Badge label={booking.via} tone="gray" />
-//             </div>
-
-//             <div className="mt-2 text-sm font-extrabold text-black">
-//               {booking.patient}{" "}
-//               <span className="text-black/50 font-semibold">(ID: {booking.pid})</span>
-//             </div>
-
-//             <div className="mt-2 text-xs text-black/70 space-y-1">
-//               <div>📞 {booking.phone}</div>
-//               <div>✉️ {booking.email}</div>
-//               <div>🕒 Booked {booking.bookedAt}</div>
-//             </div>
-//           </div>
-//         </div>
-
-//         <button
-//           className="h-9 w-9 border-2 border-black rounded-sm bg-[#F0B100] inline-flex items-center justify-center"
-//           title="Edit"
-//           onClick={() => alert("Edit action (demo).")}
-//         >
-//           <FiEdit2 className="text-black" />
-//         </button>
-//       </div>
-//     </div>
-//   );
-// }
-
-
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   FiCalendar,
@@ -1925,8 +93,8 @@ const buildSlotsFromRanges = (ranges) => {
 const startOfWeekMonday = (date) => {
   const d = new Date(date);
   const day = d.getDay(); // 0 Sun .. 6 Sat
-  const diff = day === 0 ? -6 : 1 - day; // shift to Monday
-  d.setDate(d.getDate() + diff);
+  const diff = day; // shift to Sunday (no change needed)
+  d.setDate(d.getDate() - diff);
   d.setHours(0, 0, 0, 0);
   return d;
 };
@@ -2140,113 +308,140 @@ export default function Appointment() {
   const [selectedKey, setSelectedKey] = useState(toKey(today));
   const selectedDate = useMemo(() => parseKey(selectedKey), [selectedKey]);
 
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+  };
+
+  const [manageSlotsRipples, setManageSlotsRipples] = useState([]);
+  const manageSlotsRippleId = useRef(0);
+
+  const createManageSlotsRipple = (e) => {
+    const btn = e.currentTarget;
+    const rect = btn.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const id = ++manageSlotsRippleId.current;
+    setManageSlotsRipples((prev) => [...prev, { id, x, y }]);
+    setTimeout(() => {
+      setManageSlotsRipples((prev) => prev.filter((r) => r.id !== id));
+    }, 580);
+  };
+
   const [view, setView] = useState("slots");
   const [showManageSlots, setShowManageSlots] = useState(true);
-  
+
+
   const fetchingRef = useRef(false);
-    const [hoursByDate, setHoursByDate] = useState(() => {
+  const [hoursByDate, setHoursByDate] = useState(() => {
     const saved = localStorage.getItem("hoursByDate");
     if (saved) return JSON.parse(saved);
 
     return {}; // empty initially
   });
 
-const [bookingsByDate, setBookingsByDate] = useState({});
+  const [bookingsByDate, setBookingsByDate] = useState({});
 
 
-useEffect(() => {
+  useEffect(() => {
 
-  const fetchBookings = async () => {
+    const fetchBookings = async () => {
 
-    if (fetchingRef.current) return;
-fetchingRef.current = true;
- 
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
 
-    try {
 
-      const res = await fetch("http://localhost:3001/api/medibot/appointments")
+      try {
 
-      if (!res.ok) return;
+        const res = await fetch("http://localhost:3001/api/medibot/appointments")
 
-      const data = await res.json();
-      if (!Array.isArray(data)) return;
+        if (!res.ok) return;
 
-      const updated = {};
+        const data = await res.json();
+        if (!Array.isArray(data)) return;
 
-data.forEach((item) => {
+        const updated = {};
 
-  const dateParts = item["Slot booked date"]?.split("-") || [];
+        data.forEach((item) => {
 
-  if (dateParts.length !== 3) return;
+          const rawDate =
+            item["Slot booked date"] ||
+            item["Slot Booked date"];
 
-  const dateKey = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+          const dateParts = rawDate?.split("-") || [];
 
-  let timeSlot = item["Slot Booked time"] || "00:00";
+          if (dateParts.length !== 3) return;
 
-  if (timeSlot.length > 5) {
-    timeSlot = new Date(`1970-01-01T${timeSlot}`)
-      .toTimeString()
-      .slice(0, 5);
-  }
+          const dateKey = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
 
-    const dayConfig = hoursByDate[dateKey];
+          let timeSlot =
+            item["Slot booked time"] ||
+            item["Slot Booked time"] ||
+            "00:00";
 
-if (!dayConfig || !dayConfig.open) return;
+          if (timeSlot.length > 5) {
+            timeSlot = new Date(`1970-01-01T${timeSlot}`)
+              .toTimeString()
+              .slice(0, 5);
+          }
 
-const allowedSlots = buildSlotsFromRanges(dayConfig.ranges || []);
+          const dayConfig = hoursByDate[dateKey];
 
-  if (!allowedSlots.includes(timeSlot)) {
-    console.warn("Invalid slot from webhook:", timeSlot);
-    return;
-  }
+          if (!dayConfig || !dayConfig.open) return;
 
-  if (!updated[dateKey]) updated[dateKey] = {};
+          const allowedSlots = buildSlotsFromRanges(dayConfig.ranges || []);
 
-  updated[dateKey][timeSlot] = {
-    patient: item["Name"] || "Unknown",
-    pid: item["Patient Id"] || "N/A",
-    phone: item["Phone Number"] || item.phone || "N/A",
-    email: item["Email"] || "N/A",
-    bookedAt: new Date().toLocaleString(),
-    via: "CHATBOT"
-  };
+          if (!allowedSlots.includes(timeSlot)) {
+            console.warn("Invalid slot from webhook:", timeSlot);
+            return;
+          }
 
-});
+          if (!updated[dateKey]) updated[dateKey] = {};
 
-setBookingsByDate(prev => {
+          updated[dateKey][timeSlot] = {
+            patient: item["Name"] || "Unknown",
+            pid: item["Patient Id"] || "N/A",
+            phone: item["Phone Number"] || item.phone || "N/A",
+            email: item["Email"] || "N/A",
+            bookedAt: new Date().toLocaleString(),
+            via: "CHATBOT"
+          };
 
-  const merged = { ...prev };
+        });
 
-  Object.keys(updated).forEach(date => {
-    merged[date] = {
-      ...(merged[date] || {}),
-      ...updated[date]
+        setBookingsByDate(prev => {
+
+          const merged = { ...prev };
+
+          Object.keys(updated).forEach(date => {
+            merged[date] = {
+              ...(merged[date] || {}),
+              ...updated[date]
+            };
+          });
+
+          return merged;
+
+        });
+
+      } catch (err) {
+
+        console.warn("Webhook not active");
+
+      } finally {
+        fetchingRef.current = false;
+      }
+
     };
-  });
 
-  return merged;
+    fetchBookings();
 
-}); 
+    // 🔥 auto refresh every 5 seconds
+    const interval = setInterval(fetchBookings, 5000);
 
-    } catch (err) {
+    // 🔥 cleanup when component unmounts
+    return () => clearInterval(interval);
 
-  console.warn("Webhook not active");
-
-} finally {
-  fetchingRef.current = false;
-}
-
-  };
-
- fetchBookings();
-
-  // 🔥 auto refresh every 5 seconds
-  const interval = setInterval(fetchBookings, 5000);
-
-  // 🔥 cleanup when component unmounts
-  return () => clearInterval(interval);
-
-}, [hoursByDate]);
+  }, [hoursByDate]);
 
 
 
@@ -2267,9 +462,11 @@ setBookingsByDate(prev => {
 
   const TIME_OPTIONS = useMemo(() => {
     const opts = [];
-    for (let m = 6 * 60; m <= 20 * 60; m += 15) {
-      const t = minutesToT24(m);
-      opts.push({ value: t, label: timeLabel(t) });
+    for (let h = 0; h <= 23; h++) {
+      for (let m = 0; m <= 45; m += 15) {
+        const t = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+        opts.push({ value: t, label: timeLabel(t) });
+      }
     }
     return opts;
   }, []);
@@ -2284,16 +481,96 @@ setBookingsByDate(prev => {
   }, [weekStart]);
 
   const [weekHours, setWeekHours] = useState(() => ({
+    Sun: { open: false, ranges: [{ start: "", end: "" }] },
     Mon: { open: true, ranges: [{ start: "09:00", end: "17:00" }] },
     Tue: { open: true, ranges: [{ start: "09:00", end: "17:00" }] },
     Wed: { open: true, ranges: [{ start: "09:00", end: "17:00" }] },
     Thu: { open: true, ranges: [{ start: "09:00", end: "17:00" }] },
     Fri: { open: true, ranges: [{ start: "09:00", end: "17:00" }] },
     Sat: { open: false, ranges: [{ start: "", end: "" }] },
-    Sun: { open: false, ranges: [{ start: "", end: "" }] },
   }));
 
-  const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  // Month selector state for Manage Slots
+  const [manageSlotsMonth, setManageSlotsMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+
+  // Month-wise hours state
+  const [monthHours, setMonthHours] = useState(() => {
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const hours = {};
+    dayNames.forEach(day => {
+      if (day === "Sun" || day === "Sat") {
+        hours[day] = { open: false, ranges: [{ start: "", end: "" }] };
+      } else {
+        hours[day] = { open: true, ranges: [{ start: "09:00", end: "17:00" }] };
+      }
+    });
+    return hours;
+  });
+
+  // Filter state for Manage Slots
+  const [slotFilter, setSlotFilter] = useState("this_month");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+
+  const filteredMonthDates = useMemo(() => {
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+
+    if (slotFilter === "today") {
+      return [todayDate];
+    }
+    if (slotFilter === "tomorrow") {
+      return [addDays(todayDate, 1)];
+    }
+    if (slotFilter === "day_after") {
+      return [addDays(todayDate, 2)];
+    }
+    if (slotFilter === "this_week") {
+      const sunStart = startOfWeekMonday(todayDate);
+      const dates = [];
+      for (let i = 0; i < 7; i++) {
+        dates.push(addDays(sunStart, i));
+      }
+      return dates;
+    }
+    if (slotFilter === "custom_range") {
+      if (!customFrom || !customTo) return [];
+      const dates = [];
+      let curr = parseKey(customFrom);
+      const end = parseKey(customTo);
+      for (let i = 0; i < 365; i++) {
+        if (curr > end) break;
+        dates.push(new Date(curr));
+        curr.setDate(curr.getDate() + 1);
+      }
+      return dates;
+    }
+    // this_month → all days of CURRENT month
+    const year = todayDate.getFullYear();
+    const month = todayDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const dates = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      dates.push(new Date(year, month, i));
+    }
+    return dates;
+  }, [slotFilter, customFrom, customTo]);
+
+  // Check if date is valid (always true since dates are purely generated from filters)
+  const isValidDateForSelection = (date) => true;
+
+  // Update month label to show dynamic date range
+  const monthLabel = useMemo(() => {
+    if (!filteredMonthDates.length) return "";
+    const start = filteredMonthDates[0].toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const end = filteredMonthDates[filteredMonthDates.length - 1].toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return `${start} – ${end}`;
+  }, [filteredMonthDates]);
+
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   useEffect(() => {
     setWeekHours((prev) => {
@@ -2328,6 +605,85 @@ setBookingsByDate(prev => {
       const left = p[day].ranges.filter((_, i) => i !== idx);
       return { ...p, [day]: { ...p[day], ranges: left.length ? left : [{ start: "", end: "" }] } };
     });
+
+  // Month-wise handlers
+  const setMonthDayOpen = (day, open) => {
+    setMonthHours((p) => ({ ...p, [day]: { ...p[day], open } }));
+  };
+
+  const updateMonthRange = (day, idx, patch) =>
+    setMonthHours((p) => ({
+      ...p,
+      [day]: { ...p[day], ranges: p[day].ranges.map((r, i) => (i === idx ? { ...r, ...patch } : r)) },
+    }));
+
+  const addMonthRange = (day) =>
+    setMonthHours((p) => ({ ...p, [day]: { ...p[day], ranges: [...p[day].ranges, { start: "", end: "" }] } }));
+
+  const removeMonthRange = (day, idx) =>
+    setMonthHours((p) => {
+      const left = p[day].ranges.filter((_, i) => i !== idx);
+      return { ...p, [day]: { ...p[day], ranges: left.length ? left : [{ start: "", end: "" }] } };
+    });
+
+  const applyMonthToDates = async () => {
+    try {
+      setIsSavingWeek(true);
+
+      // Send webhook payload (same format as applyWeekToDates)
+      if (!filteredMonthDates.length) return;
+
+      const payload = {
+        weekStart: toDDMMYYYY(filteredMonthDates[0]),
+        weekEnd: toDDMMYYYY(filteredMonthDates[filteredMonthDates.length - 1]),
+        schedule: filteredMonthDates.map((date) => {
+          const key = toKey(date);
+          const dayNameShort = date.toLocaleDateString("en-US", { weekday: "short" });
+          const dayConfig = hoursByDate[key] || { open: false, ranges: [] };
+
+          return {
+            date: toDDMMYYYY(date),
+            day: dayNameShort,
+            open: !!dayConfig.open,
+            ranges: dayConfig.ranges || [],
+            slots: dayConfig.open
+              ? buildSlotsFromRanges(dayConfig.ranges || [])
+              : [],
+          };
+        }),
+      };
+
+      try {
+        await fetch("http://localhost:3001/api/medibot/save-schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (err) {
+        console.warn("Webhook saving failed, but local state was already preserved.", err);
+      }
+
+      showToast("Schedule saved! Slots updated below.", "success");
+    } catch (error) {
+      console.error("Error applying month schedule:", error);
+      showToast("Failed to apply month schedule", "error");
+    } finally {
+      setIsSavingWeek(false);
+    }
+  };
+
+  // Month navigation handlers
+  const navigateMonth = (direction) => {
+    const today = new Date();
+    const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const newMonth = new Date(manageSlotsMonth);
+    newMonth.setMonth(newMonth.getMonth() + direction);
+
+    // Only allow navigation within current year and not before current month
+    if (newMonth.getFullYear() === today.getFullYear() && newMonth >= currentMonth) {
+      setManageSlotsMonth(newMonth);
+    }
+  };
 
   const applyWeekToDates = async () => {
     try {
@@ -2399,7 +755,7 @@ setBookingsByDate(prev => {
     () =>
       hoursByDate[selectedKey] || {
         open: true,
-        ranges: [{ start: "", end: "17:00" }],
+        ranges: [{ start: "09:00", end: "17:00" }],
       },
     [hoursByDate, selectedKey]
   );
@@ -2441,20 +797,25 @@ setBookingsByDate(prev => {
       return;
     }
 
+    let conflictFound = false;
     setBookingsByDate((prev) => {
       const day = prev[selectedKey] || {};
       const booking = day[from];
       if (!booking) return prev;
       if (day[to]) {
-        alert("That time is already booked. Choose another time.");
+        conflictFound = true;
         return prev;
       }
       const nextDay = { ...day };
       delete nextDay[from];
-      nextDay[to] = { ...booking, bookedAt: new Date().toLocaleString(), via: booking.via || "MANUAL" };
+      nextDay[to] = { ...booking, bookedAt: new Date().toLocaleString(), via: booking.via || "MANUAL", isUpdated: true, originalTime: booking.originalTime || from };
       return { ...prev, [selectedKey]: nextDay };
     });
 
+    if (conflictFound) {
+      showToast("That slot is already booked. Choose another time.", "error");
+      return;
+    }
     setEditing(null);
   };
 
@@ -2495,13 +856,16 @@ setBookingsByDate(prev => {
 
   const TopToggle = () => (
     <div className="flex items-center gap-2">
+      <Button
+        onClick={() => { setView("slots"); setShowManageSlots(true); }}
+        className={view === "slots" && showManageSlots ? "bg-black text-white" : "bg-white text-black"}
+      >
+        <FiClock />
+        SLOTS
+      </Button>
       <Button onClick={() => setView("calendar")} className={view === "calendar" ? "bg-black text-white" : "bg-white text-black"}>
         <FiCalendar />
         CALENDAR
-      </Button>
-      <Button onClick={() => setView("slots")} className={view === "slots" ? "bg-[#00B8DB] text-black" : "bg-white text-black"}>
-        <FiClock />
-        SLOTS
       </Button>
     </div>
   );
@@ -2509,289 +873,530 @@ setBookingsByDate(prev => {
   const isSelected = (key) => key === selectedKey;
 
   return (
-    <div
-      className="min-h-screen font-sans"
-      style={{
-        backgroundColor: PAGE_BG,
-        fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial"
-      }}
-    >
-      {toast && (
-        <div className="fixed top-6 right-6 z-50">
-          <div
-            className={`
+    <>
+      <style>{`
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+            max-height: 0;
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+            max-height: 1000px;
+          }
+        }
+        
+        .animate-slideDown {
+          animation: slideDown 0.3s ease-out forwards;
+          overflow: hidden;
+        }
+
+        @keyframes toastSlide {
+          from {
+            opacity: 0;
+            transform: translateX(100%);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        .animate-toastSlide {
+          animation: toastSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes ripple-expand {
+          0%   { transform: scale(0); opacity: 0.55; }
+          80%  { transform: scale(4); opacity: 0.15; }
+          100% { transform: scale(5); opacity: 0; }
+        }
+
+        .ripple-circle {
+          position: absolute;
+          border-radius: 50%;
+          width: 80px;
+          height: 80px;
+          margin-top: -40px;
+          margin-left: -40px;
+          background: rgba(0, 0, 0, 0.22);
+          animation: ripple-expand 0.55s ease-out forwards;
+          pointer-events: none;
+        }
+
+        @keyframes btn-press {
+          0%   { transform: scale(1); }
+          40%  { transform: scale(0.93); }
+          100% { transform: scale(1); }
+        }
+
+        .btn-press {
+          animation: btn-press 0.22s ease-out forwards;
+        }
+      `}</style>
+      <div
+        className="min-h-screen font-sans"
+        style={{
+          backgroundColor: PAGE_BG,
+          fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial"
+        }}
+      >
+        {toast && (
+          <div className="fixed top-6 right-6 z-50">
+            <div
+              className={`
         min-w-[260px]
         px-6 py-3 rounded-md border-2 font-semibold text-sm shadow-xl
         transition-all duration-300 ease-out
         animate-toastSlide
         ${toast.type === "success"
-                ? "bg-[#EFFFF5] border-[#00C950] text-black"
-                : "bg-[#FFEAEA] border-[#FF4D4D] text-black"
-              }
+                  ? "bg-[#EFFFF5] border-[#00C950] text-black"
+                  : "bg-[#FFEAEA] border-[#FF4D4D] text-black"
+                }
       `}
-          >
-            {toast.message}
-          </div>
-        </div>
-      )}
-
-      {/* ✅ TOAST HERE */}
-      <main className="mx-auto max-w-[1100px] px-6 py-7">
-        <div className="flex items-start justify-between gap-4">
-  <div>
-    <h1 className="text-3xl font-extrabold text-black tracking-tight">
-      APPOINTMENTS
-    </h1>
-    <p className="text-sm text-black/55 mt-1">
-      Manage your appointment slots and bookings
-    </p>
-  </div>
-
-  {/* Calendar / Slots buttons */}
-  <TopToggle />
-</div>
-
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <StatCard title="TODAY'S BOOKINGS" value={stats.todayBookings} subtitle="patients scheduled" borderColor={CYAN} iconBg={CYAN} icon={<FiCalendar />} />
-          <StatCard title="AVAILABLE SLOTS" value={stats.available < 0 ? 0 : stats.available} subtitle="Open for booking" borderColor={BLACK} iconBg="#fff" icon={<FiClock />} />
-          <StatCard title="TOTAL SLOTS" value={stats.totalSlots} subtitle="slots configured" borderColor={YELLOW} iconBg={YELLOW} icon={<FiClock />} />
-        </div>
-
-        
-
-
-        {view === "slots" ? (
-          <>
-            <div className="mt-6">
-              <Button onClick={() => setShowManageSlots((v) => !v)} className="bg-[#00B8DB] text-black">
-                <FiPlus />
-                MANAGE SLOTS (WEEK)
-              </Button>
-            </div>
-
-            {showManageSlots && (
-              <div className="mt-4 border-2 rounded-md bg-white p-5" style={{ borderColor: CYAN }}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-extrabold text-black uppercase">HOURS (WEEK)</div>
-                    <div className="text-xs text-black/55 mt-1">
-                      Set hours for the week: <b>{weekLabel}</b>
-                    </div>
-                  </div>
-
-                  <IconBtn onClick={() => setShowManageSlots(false)} title="Close">
-                    <FiX />
-                  </IconBtn>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <div className="text-xs text-black/55">
-                    Slots auto-generate every <b>15 minutes</b> inside each range.
-                  </div>
-
-                  <Button
-                    onClick={applyWeekToDates}
-                    disabled={isSavingWeek}
-                    className={`bg-[#00B8DB] text-black ${isSavingWeek ? "opacity-60 cursor-not-allowed" : ""
-                      }`}
-                  >
-                    {isSavingWeek ? (
-                      <>
-                        <svg
-                          className="animate-spin h-4 w-4"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="black"
-                            strokeWidth="4"
-                            fill="none"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="black"
-                            d="M4 12a8 8 0 018-8v4l3-3-3-3v4A12 12 0 000 12h4z"
-                          />
-                        </svg>
-                        SAVING...
-                      </>
-                    ) : (
-                      <>
-                        <FiCheck />
-                        APPLY TO THIS WEEK
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                <div className="mt-4 border-t border-black/10 pt-4 space-y-4">
-                  {dayNames.map((day, i) => {
-                    const date = weekDates[i];
-                    const key = toKey(date);
-                    const active = selectedKey === key;
-
-                    return (
-                      <div key={day} className={`border-2 rounded-md p-4 ${active ? "border-black bg-[#EAFBFF]" : "border-black/10 bg-white"}`}>
-                        <div className="flex flex-wrap items-center gap-3">
-                          <button type="button" onClick={() => setSelectedKey(key)} className="text-sm font-extrabold text-black underline" title="Select this day">
-                            {day}{" "}
-                            <span className="text-black/50 font-semibold">
-                              ({date.toLocaleDateString("en-US", { month: "short", day: "numeric" })})
-                            </span>
-                          </button>
-
-                          <Toggle checked={weekHours[day].open} onChange={(v) => setWeekDayOpen(day, v)} />
-
-                          <div className="text-sm font-semibold text-black/70">{weekHours[day].open ? "Open" : "Closed"}</div>
-                        </div>
-
-                        {weekHours[day].open && (
-                          <div className="mt-3 space-y-3">
-                            {weekHours[day].ranges.map((r, idx) => (
-                              <div key={idx} className="flex flex-wrap items-center gap-3">
-                                <SelectTime value={r.start} onChange={(v) => updateWeekRange(day, idx, { start: v })} placeholder="Opens at" options={TIME_OPTIONS} size="sm" />
-                                <div className="text-black/40 font-extrabold">—</div>
-                                <SelectTime value={r.end} onChange={(v) => updateWeekRange(day, idx, { end: v })} placeholder="Closes at" options={TIME_OPTIONS} size="sm" />
-
-                                {weekHours[day].ranges.length > 1 && (
-                                  <IconBtn onClick={() => removeWeekRange(day, idx)} title="Remove range">
-                                    <FiX />
-                                  </IconBtn>
-                                )}
-
-                                <div className="flex-1" />
-
-                                {idx === weekHours[day].ranges.length - 1 && (
-                                  <button type="button" onClick={() => addWeekRange(day)} className="text-sm font-extrabold underline" style={{ color: CYAN }}>
-                                    Add hours
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="mt-7 flex items-center justify-between gap-3">
-              <div className="text-lg font-extrabold text-black uppercase">SCHEDULE</div>
-              <div className="h-8 px-3 border-2 border-black rounded-sm bg-[#00B8DB] text-black text-xs font-extrabold inline-flex items-center">
-                {formatLong(selectedDate)}
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {daySchedule.map(({ time, booking }) =>
-                booking ? (
-                  <BookedCard
-                    key={time}
-                    timeT24={time}
-                    timeLabelText={timeLabel(time)}
-                    booking={booking}
-                    isEditing={editing?.fromTime === time}
-                    editToTime={editing?.fromTime === time ? editing.toTime : null}
-                    onStartEdit={() => startEdit(time)}
-                    onCancelEdit={() => setEditing(null)}
-                    onChangeEditTime={(v) => setEditing((p) => (p ? { ...p, toTime: v } : p))}
-                    onSaveEdit={saveEdit}
-                    timeOptions={availableMoveTargets}
-                  />
-                ) : (
-                  <AvailableCard key={time} time={timeLabel(time)} />
-                )
-              )}
-
-              {daySchedule.length === 0 ? (
-                <div className="border-2 border-black bg-white rounded-md p-6 text-sm text-black/60">No slots configured (or day is Closed).</div>
-              ) : null}
-            </div>
-          </>
-        ) : (
-          <div className="mt-6 border-2 rounded-md bg-white p-5" style={{ borderColor: CYAN }}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="text-2xl font-extrabold text-black">{formatMonthTitle(monthCursor)}</div>
-
-              <div className="flex items-center gap-2">
-                <IconBtn onClick={() => navMonth(-1)} title="Prev month">
-                  <FiChevronLeft />
-                </IconBtn>
-                <IconBtn onClick={() => navMonth(1)} title="Next month">
-                  <FiChevronRight />
-                </IconBtn>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-7 gap-2">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-                <div key={d} className="h-8 bg-black text-white text-xs font-extrabold flex items-center justify-center rounded-sm">
-                  {d}
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-2 grid grid-cols-7 gap-2">
-              {calendarCells.map((cell) => {
-                if (cell.type === "empty") return <div key={cell.key} className="h-[74px] border border-black/10 rounded-sm bg-white" />;
-
-                const selected = isSelected(cell.key);
-                const hasBookings = cell.booked > 0;
-                const hasSlots = cell.slots > 0;
-
-                const bg = selected ? CYAN : hasBookings ? "#F6E7B1" : "white";
-                const border = selected ? "2px solid black" : hasSlots ? "2px solid #CBD5E1" : "1px solid rgba(0,0,0,0.10)";
-
-                return (
-                  <button
-                    key={cell.key}
-                    onClick={() => setSelectedKey(cell.key)}
-                    className="h-[74px] rounded-sm flex flex-col items-center justify-center relative"
-                    style={{ background: bg, border }}
-                    title={`${cell.key} • slots: ${cell.slots}, booked: ${cell.booked}`}
-                  >
-                    <div className="text-sm font-extrabold text-black">{cell.dayNum}</div>
-
-                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                      {hasBookings
-                        ? Array.from({ length: Math.min(3, cell.booked) }).map((_, i) => (
-                          <span key={i} className="h-1.5 w-1.5 rounded-full" style={{ background: selected ? "black" : CYAN }} />
-                        ))
-                        : null}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 border-t border-black/10 pt-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="text-sm font-extrabold text-black">{formatLong(selectedDate)}</div>
-                <Button className="bg-[#00B8DB] text-black" onClick={() => setView("slots")}>
-                  <FiPlus />
-                  GO TO SLOTS
-                </Button>
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                {selectedDayBookings.length === 0 ? (
-                  <div className="border-2 border-black bg-white rounded-md p-6 text-sm text-black/60">No appointments booked for this date.</div>
-                ) : (
-                  selectedDayBookings.map(({ t, booking }) => (
-                    <BookedCard key={t} timeT24={t} timeLabelText={timeLabel(t)} booking={booking} isEditing={false} onStartEdit={() => { }} onCancelEdit={() => { }} onChangeEditTime={() => { }} onSaveEdit={() => { }} timeOptions={[]} hideEdit />
-                  ))
-                )}
-              </div>
+            >
+              {toast.message}
             </div>
           </div>
         )}
-      </main>
-    </div>
+
+        {/* ✅ TOAST HERE */}
+        <main className="mx-auto max-w-[1100px] px-6 py-7">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-extrabold text-black tracking-tight">
+                APPOINTMENTS
+              </h1>
+              <p className="text-sm text-black/55 mt-1">
+                Manage your appointment slots and bookings
+              </p>
+            </div>
+
+            {/* Calendar / Slots buttons */}
+            <TopToggle />
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <StatCard title="TODAY'S BOOKINGS" value={stats.todayBookings} subtitle="patients scheduled" borderColor={CYAN} iconBg={CYAN} icon={<FiCalendar />} />
+            <StatCard title="AVAILABLE SLOTS" value={stats.available < 0 ? 0 : stats.available} subtitle="Open for booking" borderColor={BLACK} iconBg="#fff" icon={<FiClock />} />
+            <StatCard title="TOTAL SLOTS" value={stats.totalSlots} subtitle="slots configured" borderColor={YELLOW} iconBg={YELLOW} icon={<FiClock />} />
+          </div>
+
+
+
+
+          {view === "slots" ? (
+            <>
+              <div className="mt-6">
+                <button
+                  id="manage-slots-btn"
+                  onClick={(e) => {
+                    createManageSlotsRipple(e);
+                    // brief press class
+                    e.currentTarget.classList.remove("btn-press");
+                    void e.currentTarget.offsetWidth; // reflow trick
+                    e.currentTarget.classList.add("btn-press");
+                    setShowManageSlots((v) => !v);
+                  }}
+                  className="relative overflow-hidden h-9 px-4 border-2 border-black rounded-sm font-extrabold text-xs inline-flex items-center gap-2 bg-[#00B8DB] text-black select-none"
+                  style={{ userSelect: "none" }}
+                >
+                  {manageSlotsRipples.map((r) => (
+                    <span
+                      key={r.id}
+                      className="ripple-circle"
+                      style={{ left: r.x, top: r.y }}
+                    />
+                  ))}
+                  {showManageSlots ? <FiX /> : <FiPlus />}
+                  MANAGE SLOTS (MONTH)
+                </button>
+              </div>
+
+              {showManageSlots && (
+                <div className="mt-4 border-2 rounded-md bg-white p-5 animate-slideDown" style={{ borderColor: CYAN }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-extrabold text-black uppercase">HOURS (MONTH)</div>
+                      <div className="text-xs text-black/55 mt-1">
+                        Set hours for the month: <b>{monthLabel}</b>
+                      </div>
+                    </div>
+
+                    <IconBtn onClick={() => setShowManageSlots(false)} title="Close">
+                      <FiX />
+                    </IconBtn>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <div className="text-xs text-black/55">
+                      Slots auto-generate every <b>15 minutes</b> inside each range.
+                    </div>
+
+                    <div className="text-sm font-semibold text-black px-3 py-1 border-2 border-black rounded-sm bg-[#00B8DB]">
+                      {monthLabel}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <div className="text-xs text-black/55">
+                      Configuring hours selectively based on your filter
+                    </div>
+
+                    <Button
+                      onClick={applyMonthToDates}
+                      disabled={isSavingWeek}
+                      className={`bg-[#00B8DB] text-black ${isSavingWeek ? "opacity-60 cursor-not-allowed" : ""}`}
+                    >
+                      {isSavingWeek ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="black" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="black" d="M4 12a8 8 0 018-8v4l3-3-3-3v4A12 12 0 000 12h4z" />
+                          </svg>
+                          SAVING...
+                        </>
+                      ) : (
+                        <>
+                          <FiCheck />
+                          SAVE SCHEDULE
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  <div className="mt-4 border-t border-black/10 pt-4">
+
+                    {/* Filter dropdown */}
+                    <div className="flex flex-wrap items-center gap-3 mb-4">
+                      <div className="relative inline-flex min-w-[180px]">
+                        <select
+                          value={slotFilter}
+                          onChange={(e) => setSlotFilter(e.target.value)}
+                          className="h-9 w-full pl-3 pr-8 border-2 border-black rounded-sm bg-white text-xs font-extrabold text-black outline-none appearance-none cursor-pointer"
+                        >
+                          <option value="today">Today</option>
+                          <option value="tomorrow">Tomorrow</option>
+                          <option value="day_after">Day After Tomorrow</option>
+                          <option value="this_week">This Week</option>
+                          <option value="this_month">This Month</option>
+                          <option value="custom_range">Custom Range</option>
+                        </select>
+                        <FiChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-black text-[15px]" />
+                      </div>
+                      {slotFilter !== "this_month" && (
+                        <button
+                          onClick={() => {
+                            setSlotFilter("this_month");
+                            setCustomFrom("");
+                            setCustomTo("");
+                          }}
+                          className="text-[11px] font-extrabold underline underline-offset-2 hover:no-underline text-black/60 hover:text-black cursor-pointer bg-transparent border-none p-0"
+                        >
+                          Clear filter
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Custom date range pickers */}
+                    {slotFilter === "custom_range" && (
+                      <div className="flex flex-wrap items-center gap-2 mb-4 p-3 border-2 border-black/20 rounded-md bg-[#FAFAFA]">
+                        <span className="text-[11px] font-extrabold text-black/60 uppercase tracking-wide">From</span>
+                        <input
+                          type="date"
+                          value={customFrom}
+                          min={toKey(new Date())}
+                          max={toKey(addDays(new Date(), 29))}
+                          onChange={(e) => {
+                            setCustomFrom(e.target.value);
+                            // auto-clear To if it's before new From
+                            if (customTo && e.target.value > customTo) setCustomTo("");
+                          }}
+                          className="h-7 px-2 border-2 border-black rounded-sm text-[11px] font-extrabold bg-white outline-none"
+                        />
+                        <span className="text-black/40 font-extrabold">—</span>
+                        <span className="text-[11px] font-extrabold text-black/60 uppercase tracking-wide">To</span>
+                        <input
+                          type="date"
+                          value={customTo}
+                          min={customFrom || toKey(new Date())}
+                          max={toKey(addDays(new Date(), 29))}
+                          onChange={(e) => setCustomTo(e.target.value)}
+                          className="h-7 px-2 border-2 border-black rounded-sm text-[11px] font-extrabold bg-white outline-none"
+                        />
+                        {customFrom && customTo && (
+                          <span className="text-[11px] text-black/50 font-semibold ml-1">
+                            {filteredMonthDates.length} day{filteredMonthDates.length !== 1 ? "s" : ""} selected
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Date list (filtered) */}
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {filteredMonthDates.length === 0 ? (
+                        <div className="text-sm text-black/50 py-4 text-center">
+                          {slotFilter === "custom_range" && (!customFrom || !customTo)
+                            ? "Pick a From and To date above to configure slots."
+                            : "No dates in this range."}
+                        </div>
+                      ) : filteredMonthDates.map((date) => {
+                        const key = toKey(date);
+                        const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+                        const dateStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                        const isToday = key === toKey(new Date());
+                        const isDateSelected = key === selectedKey;
+                        const isPastDate = key < toKey(new Date());
+
+                        // Get existing hours for this date or use default
+                        const existingHours = hoursByDate[key] || {
+                          open: true,
+                          ranges: [{ start: "09:00", end: "17:00" }]
+                        };
+
+                        return (
+                          <div
+                            key={key}
+                            onClick={() => { if (!isPastDate) setSelectedKey(key); }}
+                            className={`border-2 rounded-md p-3 transition-all select-none ${isPastDate
+                              ? "opacity-50 cursor-not-allowed bg-[#F9F9F9] border-black/10"
+                              : isDateSelected
+                                ? "cursor-pointer border-[#00B8DB] bg-[#EAFBFF] shadow-[0_0_15px_rgba(0,184,219,0.3)] text-black"
+                                : isToday
+                                  ? "cursor-pointer border-black bg-[#FAFAFA]"
+                                  : "cursor-pointer border-black/10 bg-white hover:border-black/30"
+                              }`}
+                          >
+                            <div className="flex flex-wrap items-center gap-3 mb-3">
+                              {/* Date label */}
+                              <div className={`text-sm font-extrabold flex items-center gap-1.5 ${isDateSelected ? "text-[#00B8DB]" : "text-black"}`}>
+                                <span>{dayName}, {date.getDate()} {date.toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
+                                {isDateSelected && <span className="text-[10px] uppercase opacity-70 font-black tracking-wider">(Selected)</span>}
+                              </div>
+
+                              {/* Spacer to push toggle to the right */}
+                              <div className="flex-1" />
+
+                              <div className={isPastDate ? "pointer-events-none" : ""} onClick={(e) => e.stopPropagation()}>
+                                <Toggle
+                                  checked={existingHours.open}
+                                  onChange={(open) => {
+                                    if (isPastDate) return;
+                                    setHoursByDate(prev => ({
+                                      ...prev,
+                                      [key]: { ...existingHours, open }
+                                    }));
+                                  }}
+                                />
+                              </div>
+
+                              <div className={`text-sm font-semibold text-black/70`}>
+                                {existingHours.open ? "Open" : "Closed"}
+                              </div>
+
+                              {isToday && (
+                                <span className="text-xs px-2 py-1 bg-[#00B8DB] text-black font-extrabold rounded-sm">
+                                  TODAY
+                                </span>
+                              )}
+                            </div>
+
+                            {existingHours.open && (
+                              <div className={`space-y-2 ${isPastDate ? "pointer-events-none opacity-60" : ""}`}>
+                                {existingHours.ranges.map((r, idx) => (
+                                  <div key={idx} className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                    <SelectTime
+                                      value={r.start}
+                                      onChange={(start) => {
+                                        const newRanges = [...existingHours.ranges];
+                                        newRanges[idx] = { ...newRanges[idx], start };
+                                        setHoursByDate(prev => ({
+                                          ...prev,
+                                          [key]: { ...existingHours, ranges: newRanges }
+                                        }));
+                                      }}
+                                      placeholder="Opens at"
+                                      options={TIME_OPTIONS}
+                                      size="sm"
+                                    />
+                                    <div className="text-black/40 font-extrabold">—</div>
+                                    <SelectTime
+                                      value={r.end}
+                                      onChange={(end) => {
+                                        const newRanges = [...existingHours.ranges];
+                                        newRanges[idx] = { ...newRanges[idx], end };
+                                        setHoursByDate(prev => ({
+                                          ...prev,
+                                          [key]: { ...existingHours, ranges: newRanges }
+                                        }));
+                                      }}
+                                      placeholder="Closes at"
+                                      options={TIME_OPTIONS}
+                                      size="sm"
+                                    />
+
+                                    {existingHours.ranges.length > 1 && (
+                                      <IconBtn
+                                        onClick={() => {
+                                          const newRanges = existingHours.ranges.filter((_, i) => i !== idx);
+                                          setHoursByDate(prev => ({
+                                            ...prev,
+                                            [key]: { ...existingHours, ranges: newRanges.length ? newRanges : [{ start: "", end: "" }] }
+                                          }));
+                                        }}
+                                        title="Remove range"
+                                      >
+                                        <FiX />
+                                      </IconBtn>
+                                    )}
+
+                                    <div className="flex-1" />
+
+                                    {idx === existingHours.ranges.length - 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setHoursByDate(prev => ({
+                                            ...prev,
+                                            [key]: {
+                                              ...existingHours,
+                                              ranges: [...existingHours.ranges, { start: "", end: "" }]
+                                            }
+                                          }));
+                                        }}
+                                        className="text-sm font-extrabold underline"
+                                        style={{ color: CYAN }}
+                                      >
+                                        Add hours
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-7 flex items-center justify-between gap-3">
+                <div className="text-lg font-extrabold text-black uppercase">SCHEDULE</div>
+                <div className="h-8 px-3 border-2 border-black rounded-sm bg-[#00B8DB] text-black text-xs font-extrabold inline-flex items-center">
+                  {formatLong(selectedDate)}
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {daySchedule.map(({ time, booking }) =>
+                  booking ? (
+                    <BookedCard
+                      key={time}
+                      timeT24={time}
+                      timeLabelText={timeLabel(time)}
+                      booking={booking}
+                      isEditing={editing?.fromTime === time}
+                      editToTime={editing?.fromTime === time ? editing.toTime : null}
+                      onStartEdit={() => startEdit(time)}
+                      onCancelEdit={() => setEditing(null)}
+                      onChangeEditTime={(v) => setEditing((p) => (p ? { ...p, toTime: v } : p))}
+                      onSaveEdit={saveEdit}
+                      timeOptions={availableMoveTargets}
+                    />
+                  ) : (
+                    <AvailableCard key={time} time={timeLabel(time)} />
+                  )
+                )}
+
+                {daySchedule.length === 0 ? (
+                  <div className="border-2 border-black bg-white rounded-md p-6 text-sm text-black/60">No slots configured (or day is Closed).</div>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <div className="mt-6 border-2 rounded-md bg-white p-5" style={{ borderColor: CYAN }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="text-2xl font-extrabold text-black">{formatMonthTitle(monthCursor)}</div>
+
+                <div className="flex items-center gap-2">
+                  <IconBtn onClick={() => navMonth(-1)} title="Prev month">
+                    <FiChevronLeft />
+                  </IconBtn>
+                  <IconBtn onClick={() => navMonth(1)} title="Next month">
+                    <FiChevronRight />
+                  </IconBtn>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-7 gap-2">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                  <div key={d} className="h-8 bg-black text-white text-xs font-extrabold flex items-center justify-center rounded-sm">
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-2 grid grid-cols-7 gap-2">
+                {calendarCells.map((cell) => {
+                  if (cell.type === "empty") return <div key={cell.key} className="h-[74px] border border-black/10 rounded-sm bg-white" />;
+
+                  const selected = isSelected(cell.key);
+                  const hasBookings = cell.booked > 0;
+                  const hasSlots = cell.slots > 0;
+
+                  const bg = selected ? CYAN : hasBookings ? "#F6E7B1" : "white";
+                  const border = selected ? "2px solid black" : hasSlots ? "2px solid #CBD5E1" : "1px solid rgba(0,0,0,0.10)";
+
+                  return (
+                    <button
+                      key={cell.key}
+                      onClick={() => setSelectedKey(cell.key)}
+                      className="h-[74px] rounded-sm flex flex-col items-center justify-center relative"
+                      style={{ background: bg, border }}
+                      title={`${cell.key} • slots: ${cell.slots}, booked: ${cell.booked}`}
+                    >
+                      <div className="text-sm font-extrabold text-black">{cell.dayNum}</div>
+
+                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                        {hasBookings
+                          ? Array.from({ length: Math.min(3, cell.booked) }).map((_, i) => (
+                            <span key={i} className="h-1.5 w-1.5 rounded-full" style={{ background: selected ? "black" : CYAN }} />
+                          ))
+                          : null}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 border-t border-black/10 pt-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="text-sm font-extrabold text-black">{formatLong(selectedDate)}</div>
+                  <Button className="bg-[#00B8DB] text-black" onClick={() => setView("slots")}>
+                    <FiPlus />
+                    GO TO SLOTS
+                  </Button>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedDayBookings.length === 0 ? (
+                    <div className="border-2 border-black bg-white rounded-md p-6 text-sm text-black/60">No appointments booked for this date.</div>
+                  ) : (
+                    selectedDayBookings.map(({ t, booking }) => (
+                      <BookedCard key={t} timeT24={t} timeLabelText={timeLabel(t)} booking={booking} isEditing={false} onStartEdit={() => { }} onCancelEdit={() => { }} onChangeEditTime={() => { }} onSaveEdit={() => { }} timeOptions={[]} hideEdit />
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+    </>
   );
 }
 
@@ -2879,6 +1484,7 @@ function BookedCard({
 
               <Badge label="BOOKED" tone="green" />
               <Badge label={booking.via || "MANUAL"} tone="gray" />
+              {booking.isUpdated && <Badge label="UPDATED" tone="cyan" />}
             </div>
 
             <div className="mt-2 text-sm font-extrabold text-black">
@@ -2889,6 +1495,11 @@ function BookedCard({
               <div>📞 {booking.phone}</div>
               <div>✉️ {booking.email}</div>
               <div>🕒 Booked {booking.bookedAt}</div>
+              {booking.originalTime && (
+                <div className="text-[#00B8DB] font-bold mt-1.5 bg-[#EAFBFF] px-2 py-1 rounded-sm border-l-2 border-[#00B8DB]">
+                  🔄 Rescheduled from {timeLabel(booking.originalTime)} to {timeLabelText}
+                </div>
+              )}
             </div>
           </div>
         </div>

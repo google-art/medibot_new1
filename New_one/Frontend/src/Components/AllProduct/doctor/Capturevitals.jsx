@@ -56,49 +56,84 @@ export default function CaptureVitals() {
 
 
 
-  useEffect(() => {
+useEffect(() => {
+  // ❌ No patient → reset everything
+  if (!patientIdParam) {
+    setResolvedPatientId("");
+    setPatientName("");
+    setVitals({
+      height: "",
+      weight: "",
+      bp: "",
+      temp: "",
+      pulse: "",
+    });
+    return;
+  }
 
-    // ❗ If no patientId in URL → new patient
-    if (!patientIdParam) {
-      setResolvedPatientId("");
-      setPatientName("");
-      return;
-    }
+  const stateData = location?.state || {};
+  const mode = stateData.mode;
 
-    const stateName = location?.state?.patientName || "";
-    const stateId = location?.state?.patientId || "";
-    // fallback from sessionStorage
-    let storageName = "";
-    let storageId = "";
+  // ✅ Set base patient info
+  setResolvedPatientId(
+    patientIdParam || stateData.patientId || ""
+  );
 
-    try {
-      const raw = sessionStorage.getItem("capturePatient");
-      const parsed = raw ? JSON.parse(raw) : null;
+  setPatientName(stateData.patientName || "");
 
-      storageName = parsed?.patientName || "";
-      storageId = parsed?.patientId || "";
-    } catch { }
+  setContact({
+    age: stateData.age || "",
+    location: stateData.location || "",
+    email: stateData.email || "",
+    phone: stateData.phone || "",
+  });
 
-    const stateData = location?.state || {};
+  // ================================
+  // 🔥 VITALS LOGIC (FINAL)
+  // ================================
 
-    const finalName = stateName || storageName;
-    const finalId = patientIdParam || stateId || storageId;
+  if (mode === "draft") {
+    // ✅ Coming back from consultation → restore draft
+    const draft = JSON.parse(
+      sessionStorage.getItem("consultationDraft") || "{}"
+    );
 
-    if (finalId) setResolvedPatientId(finalId);
-
-    if (finalName) setPatientName(finalName);
-
-    // ⭐ ADD THIS BLOCK
-    if (stateData) {
-      setContact({
-        age: stateData.age || "",
-        location: stateData.location || "",
-        email: stateData.email || "",
-        phone: stateData.phone || "",
+    if (draft?.vitals) {
+      setVitals({
+        height: draft.vitals.height || "",
+        weight: draft.vitals.weight || "",
+        bp: draft.vitals.bp || "",
+        temp: draft.vitals.temp || "",
+        pulse: draft.vitals.pulse || "",
       });
+      return; // ✅ STOP here
     }
+  }
 
-  }, [location?.state, patientIdParam]);
+  // ✅ Fresh from Patients page → use backend vitals
+  if (stateData?.vitals) {
+    sessionStorage.removeItem("consultationDraft");
+
+    setVitals({
+      height: stateData.vitals.height || "",
+      weight: stateData.vitals.weight || "",
+      bp: stateData.vitals.bp || "",
+      temp: stateData.vitals.temp || "",
+      pulse: stateData.vitals.pulse || "",
+    });
+    return; // ✅ STOP here
+  }
+
+  // ✅ Default → empty (manual entry)
+  setVitals({
+    height: "",
+    weight: "",
+    bp: "",
+    temp: "",
+    pulse: "",
+  });
+
+}, [location?.state, patientIdParam]);
 
   // 🔍 Fetch patient details from backend
   const fetchPatientDetails = async (id) => {
@@ -200,25 +235,30 @@ export default function CaptureVitals() {
       return;
     }
 
-    const payload = {
-      patientId: resolvedPatientId || "",
-      patientName: patientName.trim(),
-      vitals: {
-        height: vitals.height.trim(),
-        weight: vitals.weight.trim(),
-        bp: vitals.bp.trim(),
-        temp: vitals.temp.trim(),
-        pulse: vitals.pulse.trim(),
-      },
-      capturedAt: new Date().toISOString(),
-    };
+     const payload = {
+  patientId: resolvedPatientId || "",
+  patientName: patientName.trim(),
 
+  // 🔥 ADD THIS BLOCK
+  age: contact.age,
+  location: contact.location,
+  email: contact.email,
+  phone: contact.phone,
+
+  vitals: {
+    height: String(vitals.height).trim(),
+    weight: String(vitals.weight).trim(),
+    bp: String(vitals.bp).trim(),
+    temp: String(vitals.temp).trim(),
+    pulse: String(vitals.pulse).trim(),
+  },
+};
+    // ✅ AFTER object creation
     sessionStorage.setItem("consultationDraft", JSON.stringify(payload));
 
-    // ✅ FIXED: go to doctor module consultation page
+    // ✅ navigate
     navigate(`${DOCTOR_BASE}/consultation`, { state: payload });
   };
-
   return (
     <div
       className="min-h-screen font-sans"
@@ -241,7 +281,7 @@ export default function CaptureVitals() {
 
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/maindoctor/patients")}
             className="h-9 px-4 bg-[#00B8DB] text-black font-extrabold text-xs border-2 border-black rounded-sm inline-flex items-center gap-2"
           >
             <FiArrowLeft />
@@ -294,7 +334,7 @@ export default function CaptureVitals() {
         <div className="mt-6 border-2 border-black bg-white rounded-md p-5">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-<div>
+            <div>
               <Label>Location</Label>
               <Field
                 value={contact.location}
