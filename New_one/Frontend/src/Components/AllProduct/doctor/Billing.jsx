@@ -750,6 +750,7 @@ const RecordCard = ({
   onSaveEdit,
   onCancelEdit,
   onOpenMarkPaid,
+  updatingIds,
 }) => {
   const border =
     r.status === "paid"
@@ -760,6 +761,8 @@ const RecordCard = ({
 
   const subtleBg = r.status === "pending" ? "bg-[#FFFBEE]" : "bg-white";
   const canEditFee = r.status !== "paid"; // ✅ after paid cannot edit
+  const key = `${r.id}-${r.date}-${r.time}`;
+  const isUpdating = updatingIds?.has(`${r.id}-${r.date}-${r.time}`);
 
   return (
     <div className={`border-2 ${border} ${subtleBg} rounded-md`}>
@@ -822,7 +825,10 @@ const RecordCard = ({
 
                 <button
                   type="button"
-                  onClick={() => canEditFee && onStartEdit(r.id, r.fee)}
+                  onClick={() =>
+                    canEditFee &&
+                    onStartEdit(`${r.id}-${r.date}-${r.time}`, r.fee)
+                  }
                   disabled={!canEditFee}
                   className={[
                     "h-9 w-9 border-2 border-black rounded-sm flex items-center justify-center",
@@ -841,10 +847,14 @@ const RecordCard = ({
                     autoFocus
                     inputMode="numeric"
                     value={draftFee}
-                    onChange={(e) => onDraftChange(r.id, e.target.value)}
+                    onChange={(e) =>
+                      onDraftChange(`${r.id}-${r.date}-${r.time}`, e.target.value)
+                    }
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") onSaveEdit(r.id);
-                      if (e.key === "Escape") onCancelEdit(r.id);
+                      const key = `${r.id}-${r.date}-${r.time}`;
+
+                      if (e.key === "Enter") onSaveEdit(key);
+                      if (e.key === "Escape") onCancelEdit(key);
                     }}
                     className="w-[130px] text-right text-2xl font-extrabold text-black bg-transparent outline-none border-b-2 border-black"
                   />
@@ -852,7 +862,7 @@ const RecordCard = ({
 
                 <button
                   type="button"
-                  onClick={() => onSaveEdit(r.id)}
+                  onClick={() => onSaveEdit(`${r.id}-${r.date}-${r.time}`)}
                   className="h-9 w-9 border-2 border-black rounded-sm bg-[#00C950] flex items-center justify-center"
                   title="Save"
                 >
@@ -861,7 +871,7 @@ const RecordCard = ({
 
                 <button
                   type="button"
-                  onClick={() => onCancelEdit(r.id)}
+                  onClick={() => onCancelEdit(`${r.id}-${r.date}-${r.time}`)}
                   className="h-9 w-9 border-2 border-black rounded-sm bg-white flex items-center justify-center"
                   title="Cancel"
                 >
@@ -885,11 +895,12 @@ const RecordCard = ({
             ) : (
               <button
                 type="button"
+                disabled={isUpdating}
                 onClick={() => onOpenMarkPaid(r)}
                 className="h-9 px-4 border-2 border-black rounded-sm bg-[#00B8DB] text-black font-extrabold text-xs inline-flex items-center justify-center gap-2"
               >
                 <FiCheckCircle className="text-black" />
-                MARK AS PAID
+                {isUpdating ? "PROCESSING..." : "MARK AS PAID"}
               </button>
             )}
           </div>
@@ -903,6 +914,7 @@ const RecordCard = ({
 
 const Billing = () => {
   const [records, setRecords] = useState([]);
+  const [updatingIds, setUpdatingIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 
@@ -921,39 +933,57 @@ const Billing = () => {
       else if (json.body) data = json.body;
       else data = [json];
 
-
       const formatted = data
         .filter((item) => item.PatientId && item.Patient_Name)
-        .map((item) => ({
-          id: item.PatientId,
-          name: item.Patient_Name,
-          date: formatDate(item.Date),
+        .map((item) => {
+          const status = normalizeStatus(item.Status || item.status);
+          const backendFee = sanitizeFee(item.Fee ?? item.fee);
 
-          time: formatWebhookTime(item.Time || item.time),
+          // ✅ FIX: INSIDE map
+          const paymentMethod =
+            item["Payment Method"]?.trim() ||
+            item.paymentmethod?.trim() ||
+            "";
 
-          fee: appBillingSettings.defaultFee || 200,
-          status: normalizeStatus(item.Status || item.status),
-          note: item.note || "",
-        }));
+          const backendDate = item.Date;
 
-      setRecords((prev) => {
-        const existingKeys = new Set(
-          prev.map((r) => `${r.id}-${r.date}-${r.time}`)
-        );
+          const formattedNote =
+            status === "paid"
+              ? paymentMethod
+                ? `Paid on ${formatDate(backendDate)} via ${paymentMethod}`
+                : `Paid on ${formatDate(backendDate)}`
+              : "";
 
-        const newRecords = formatted.filter(
-          (r) => !existingKeys.has(`${r.id}-${r.date}-${r.time}`)
-        );
+          return {
+            id: item.PatientId,
+            name: item.Patient_Name,
+            date: formatDate(item.Date),
+            time: formatWebhookTime(item.Time || item.time),
+            fee:
+              status === "pending"
+                ? appBillingSettings.defaultFee
+                : backendFee || appBillingSettings.defaultFee,
+            status,
+            note: formattedNote,
+          };
+        });
 
-        return [...prev, ...newRecords];
-      });
+      // ✅ SAFE UPDATE
+      if (formatted.length > 0) {
+        setRecords(formatted);
+      }
+
     } catch (err) {
-      console.error(err);
+      console.error("FETCH ERROR:", err);
       setFetchError("Failed to load billing data");
     } finally {
       setLoading(false);
     }
   };
+
+
+
+
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
 
@@ -965,7 +995,7 @@ const Billing = () => {
       const day = String(d.getDate()).padStart(2, "0");
       const year = d.getFullYear();
 
-      return `${month}/${day}/${year}`;
+      return `${day}/${month}/${year}`; // ✅ dd/mm/yyyy
     } catch {
       return dateStr;
     }
@@ -1200,14 +1230,12 @@ const Billing = () => {
 
     const interval = setInterval(() => {
       fetchBillingDetails();
-    }, 10000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    setLoading(false);
-  }, []);
+
   // run only once when page loads
   // ✅ patient summary (counts)
 
@@ -1275,16 +1303,44 @@ const Billing = () => {
       return;
     }
 
+    const key = `${markPaidTarget.id}-${markPaidTarget.date}-${markPaidTarget.time}`;
+
+    // 🔥 1. INSTANT UI UPDATE (THIS IS WHAT YOU WANT)
     const now = new Date();
 
-    const date = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
+    const formattedDate = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")
+      }/${now.getFullYear()}`;
 
-    const time = now.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    setRecords(prev =>
+      prev.map(r =>
+        `${r.id}-${r.date}-${r.time}` === key
+          ? {
+            ...r,
+            status: "paid",
+            note: `Paid on ${formattedDate} via ${markPaidMethod}`, // ✅ FIX
+          }
+          : r
+      )
+    );
+
+    // 🔥 2. CLOSE MODAL IMMEDIATELY
+    setMarkPaidOpen(false);
+    setMarkPaidTarget(null);
+    setMarkPaidMethod("");
+
+    // 🔥 3. LOCK BUTTON (optional but good)
+    setUpdatingIds(prev => new Set(prev).add(key));
 
     try {
+      const now = new Date();
+
+      const date = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+      const time = now.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      // 🔵 BACKGROUND WEBHOOK (no waiting for UI)
       await fetch(
         "https://dharinisrisubramanian.n8n-wsk.com/webhook-test/Confirmpaid",
         {
@@ -1297,72 +1353,85 @@ const Billing = () => {
             patientname: markPaidTarget.name,
             paymentmethod: markPaidMethod,
             fee: currencySymbol + markPaidTarget.fee,
-            date: date,
-            time: time,
+            date,
+            time,
           }),
         }
       );
 
-      console.log("Webhook sent");
+      // 🔄 optional: refresh silently
+      fetchBillingDetails();
+
     } catch (err) {
-      console.error("Webhook error", err);
+      console.error("Webhook failed", err);
+
+      // ❌ ROLLBACK if failed
+      setRecords(prev =>
+        prev.map(r =>
+          `${r.id}-${r.date}-${r.time}` === key
+            ? { ...r, status: "pending", note: "" }
+            : r
+        )
+      );
+
+      alert("Payment failed. Reverted.");
+    } finally {
+      // unlock
+      setUpdatingIds(prev => {
+        const copy = new Set(prev);
+        copy.delete(key);
+        return copy;
+      });
     }
-
-    setRecords((prev) =>
-      prev.map((r) =>
-        r.id === markPaidTarget.id
-          ? {
-            ...r,
-            status: "paid",
-            note: `Paid on ${date} ${time} via ${markPaidMethod}`,
-          }
-          : r
-      )
-    );
-
-    setMarkPaidOpen(false);
-    setMarkPaidTarget(null);
-    setMarkPaidMethod("");
   };
 
-  const startEdit = (id, currentFee) => {
-    const rec = records.find((x) => x.id === id);
+  const startEdit = (key, currentFee) => {
+    const rec = records.find(
+      (x) => `${x.id}-${x.date}-${x.time}` === key
+    );
+
     if (rec?.status === "paid") return;
 
     setEditing((prev) => ({
       ...prev,
-      [id]: { active: true, draft: String(currentFee ?? "") },
+      [key]: { active: true, draft: String(currentFee ?? "") },
     }));
   };
 
-  const draftChange = (id, next) => {
+  const draftChange = (key, next) => {
     setEditing((prev) => ({
       ...prev,
-      [id]: { active: true, draft: String(next).replace(/[^\d]/g, "") },
+      [key]: {
+        active: true,
+        draft: String(next).replace(/[^\d]/g, ""),
+      },
     }));
   };
 
-  const cancelEdit = (id) => {
+  const cancelEdit = (key) => {
     setEditing((prev) => {
       const copy = { ...prev };
-      delete copy[id];
+      delete copy[key];
       return copy;
     });
   };
 
-  const saveEdit = (id) => {
-    const rec = records.find((x) => x.id === id);
-    if (rec?.status === "paid") {
-      cancelEdit(id);
-      return;
-    }
-
-    const draft = editing[id]?.draft ?? "";
+  const saveEdit = (key) => {
+    const draft = editing[key]?.draft ?? "";
     const fee = sanitizeFee(draft);
 
-    setRecords((prev) => prev.map((r) => (r.id === id ? { ...r, fee } : r)));
-    cancelEdit(id);
+    setRecords((prev) =>
+      prev.map((r) => {
+        const rKey = `${r.id}-${r.date}-${r.time}`;
+        return rKey === key ? { ...r, fee } : r;
+      })
+    );
+
+    cancelEdit(key);
   };
+
+
+
 
   const exportCsv = () => {
     const header = ["ID", "Name", "Date", "Time", "Status", "Fee", "Note"];
@@ -1571,18 +1640,22 @@ const Billing = () => {
           ) : (
             filtered.map((r) => {
               console.log("RENDER:", r);
+
+              const editKey = `${r.id}-${r.date}-${r.time}`; // ✅ move here
+
               return (
                 <RecordCard
-                  key={`${r.id}-${r.date}-${r.time}`}
+                  key={editKey}
                   r={r}
                   currencySymbol={currencySymbol}
-                  isEditing={!!editing[r.id]?.active}
-                  draftFee={editing[r.id]?.draft ?? ""}
+                  isEditing={!!editing[editKey]?.active}
+                  draftFee={editing[editKey]?.draft ?? ""}
                   onStartEdit={startEdit}
                   onDraftChange={draftChange}
                   onSaveEdit={saveEdit}
                   onCancelEdit={cancelEdit}
                   onOpenMarkPaid={openMarkPaid}
+                  updatingIds={updatingIds}
                 />
               );
             })
